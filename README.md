@@ -1,6 +1,7 @@
-# pilates
+# Pilates
 
-A new Flutter project.
+A first Flutter project.
+This project for reformer pilates customer and business owners.
 
 ## Getting Started
 
