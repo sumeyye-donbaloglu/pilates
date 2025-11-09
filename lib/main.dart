@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; // Firebase yapılandırma dosyası
-import 'welcome.dart'; // Welcome ekranı
+import 'firebase_options.dart';
+import 'welcome.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Firebase başlatmadan önce gerekli
+  WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: WelcomeScreen(), // Uygulama ilk açıldığında bu ekran gelir
+      home: WelcomeScreen(),
     );
   }
 }
