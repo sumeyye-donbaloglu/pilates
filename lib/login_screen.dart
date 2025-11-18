@@ -37,9 +37,8 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final role = userDoc['role'];
-      Widget targetScreen = role == 'business'
-          ? const BusinessHomeScreen()
-          : const CustomerHomeScreen();
+      Widget targetScreen =
+      role == 'business' ? const BusinessHomeScreen() : const CustomerHomeScreen();
 
       Navigator.pushReplacement(
         context,
@@ -53,33 +52,79 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  InputDecoration customInput(String label) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: Colors.white,
+      labelStyle: const TextStyle(color: Color(0xFF6A4E4E)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFD9C6C6)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFBFA9A9), width: 1.5),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F6),
+      backgroundColor: const Color(0xFFF9F9F9),
       appBar: AppBar(
-        title: const Text('Giriş Yap'),
-        backgroundColor: const Color(0xFFB07C7C),
+        backgroundColor: const Color(0xFFE8CFCF),
+        elevation: 0,
         centerTitle: true,
+        title: const Text(
+          "Giriş Yap",
+          style: TextStyle(
+            color: Color(0xFF6A4E4E),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
+
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Column(
           children: [
             const SizedBox(height: 40),
-            TextField(controller: _email, decoration: const InputDecoration(labelText: 'E-posta', border: OutlineInputBorder())),
+
+            TextField(
+              controller: _email,
+              decoration: customInput("E-posta"),
+            ),
             const SizedBox(height: 16),
-            TextField(controller: _password, obscureText: true, decoration: const InputDecoration(labelText: 'Şifre', border: OutlineInputBorder())),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _loading ? null : login,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDBB5B5),
-                padding: const EdgeInsets.symmetric(vertical: 16),
+
+            TextField(
+              controller: _password,
+              obscureText: true,
+              decoration: customInput("Şifre"),
+            ),
+            const SizedBox(height: 28),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _loading ? null : login,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE8CFCF),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  elevation: 0,
+                ),
+                child: _loading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                  'Giriş Yap',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                ),
               ),
-              child: _loading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Giriş Yap', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             ),
           ],
         ),
