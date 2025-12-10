@@ -25,12 +25,13 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
     fetchBusinessInfo();
   }
 
+  /// 🔥 ARTIK USERS DEĞİL → businessSettings koleksiyonu
   Future<void> fetchBusinessInfo() async {
     try {
       final uid = FirebaseAuth.instance.currentUser!.uid;
 
       final doc = await FirebaseFirestore.instance
-          .collection('users')
+          .collection('businessSettings')
           .doc(uid)
           .get();
 
@@ -38,6 +39,12 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
         setState(() {
           businessName = doc['businessName'] ?? "Salon Adı";
           location = doc['location'] ?? "Konum bilgisi";
+          loading = false;
+        });
+      } else {
+        setState(() {
+          businessName = "Salon Adı";
+          location = "Konum bilgisi";
           loading = false;
         });
       }
