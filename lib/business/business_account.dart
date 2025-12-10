@@ -24,7 +24,7 @@ class _BusinessAccountState extends State<BusinessAccount> {
     setState(() => _loading = true);
 
     try {
-      /// Firebase Auth – kullanıcıyı oluştur
+      /// Firebase Auth – create user
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: _email.text.trim(),
         password: _password.text.trim(),
@@ -32,36 +32,42 @@ class _BusinessAccountState extends State<BusinessAccount> {
 
       final uid = userCredential.user!.uid;
 
-      /// 🔥 Firestore – işletme dökümanını kaydet (default ayarlarla)
+      /// Firestore – create business document with new professional model
       await _firestore.collection('users').doc(uid).set({
-        'uid': uid,
-        'businessName': _businessName.text.trim(),
-        'location': _location.text.trim(),
-        'email': _email.text.trim(),
-        'role': 'business',
+        "role": "business",
+        "createdAt": FieldValue.serverTimestamp(),
+        "updatedAt": FieldValue.serverTimestamp(),
 
-        // 🔹 Reformer cihaz sayısı (başlangıç: 0)
-        'reformerCount': 0,
+        /// İşletme bilgileri
+        "businessInfo": {
+          "name": _businessName.text.trim(),
+          "location": _location.text.trim(),
+          "email": _email.text.trim(),
+        },
 
-        // 🔹 Varsayılan çalışma saatleri (kullanıcıya gösterilmez)
-        'weekdayStart': '08:00',
-        'weekdayEnd': '22:00',
-        'weekendStart': '08:00',
-        'weekendEnd': '22:00',
+        /// Ayarlar (tek noktada)
+        "settings": {
+          "weekday": {
+            "start": "08:00",
+            "end": "22:00",
+          },
+          "weekend": {
+            "start": "08:00",
+            "end": "22:00",
+          },
+          "sessionDuration": 50,
+          "breakDuration": 10,
+        },
 
-        // 🔹 Varsayılan seans ayarları
-        'sessionDuration': 50, // dk
-        'breakDuration': 10,   // dk
-
-        'createdAt': FieldValue.serverTimestamp(),
+        /// Cihaz sayısı
+        "reformerCount": 0,
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('İşletme hesabı başarıyla oluşturuldu!')),
+        const SnackBar(content: Text("İşletme hesabı başarıyla oluşturuldu!")),
       );
 
       Navigator.pop(context);
-
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Hata: ${e.message}')),
@@ -98,7 +104,10 @@ class _BusinessAccountState extends State<BusinessAccount> {
         centerTitle: true,
         title: const Text(
           "İşletme Hesabı Oluştur",
-          style: TextStyle(color: Color(0xFF6A4E4E), fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Color(0xFF6A4E4E),
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
 
@@ -161,8 +170,11 @@ class _BusinessAccountState extends State<BusinessAccount> {
                   child: _loading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
-                          'Hesabı Oluştur',
-                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                          "Hesabı Oluştur",
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                 ),
               ),
@@ -181,11 +193,12 @@ class _BusinessAccountState extends State<BusinessAccount> {
                     ),
                   ),
                   child: const Text(
-                    'Geri Dön',
+                    "Geri Dön",
                     style: TextStyle(
                       color: Color(0xFF6A4E4E),
                       fontSize: 16,
-                      fontWeight: FontWeight.w500),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),

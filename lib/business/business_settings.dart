@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// 🔹 Yeni ekledik
 import '../services/daily_slot_service.dart';
 
 class BusinessSettingsScreen extends StatefulWidget {
@@ -14,15 +13,13 @@ class BusinessSettingsScreen extends StatefulWidget {
 
 class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
   bool loading = true;
-  bool generating = false; // slot oluştururken loading göstermek için
+  bool generating = false;
 
-  // Saat alanları
+  // Settings fields
   String weekdayStart = "08:00";
   String weekdayEnd = "22:00";
   String weekendStart = "08:00";
   String weekendEnd = "22:00";
-
-  // Dropdown değerleri
   int sessionDuration = 50;
   int breakDuration = 10;
 
@@ -34,41 +31,41 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
     loadSettings();
   }
 
-  /// 🔥 Firestore’dan Ayarları Çekiyoruz
+  /// 🔥 Load NEW settings structure
   Future<void> loadSettings() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final doc = await _firestore.collection("users").doc(uid).get();
 
-    if (doc.exists) {
-      setState(() {
-        weekdayStart = doc["weekdayStart"];
-        weekdayEnd = doc["weekdayEnd"];
-        weekendStart = doc["weekendStart"];
-        weekendEnd = doc["weekendEnd"];
-
-        sessionDuration = doc["sessionDuration"];
-        breakDuration = doc["breakDuration"];
-
-        loading = false;
-      });
-    } else {
-      setState(() {
-        loading = false;
-      });
+    if (!doc.exists || doc.data()!["settings"] == null) {
+      setState(() => loading = false);
+      return;
     }
+
+    final settings = doc.data()!["settings"];
+
+    setState(() {
+      weekdayStart = settings["weekday"]["start"];
+      weekdayEnd = settings["weekday"]["end"];
+      weekendStart = settings["weekend"]["start"];
+      weekendEnd = settings["weekend"]["end"];
+      sessionDuration = settings["sessionDuration"];
+      breakDuration = settings["breakDuration"];
+      loading = false;
+    });
   }
 
-  /// 🔥 Ayarları Firestore’a kaydet
+  /// 🔥 Save UPDATED nested settings object
   Future<void> saveSettings() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
     await _firestore.collection("users").doc(uid).update({
-      "weekdayStart": weekdayStart,
-      "weekdayEnd": weekdayEnd,
-      "weekendStart": weekendStart,
-      "weekendEnd": weekendEnd,
-      "sessionDuration": sessionDuration,
-      "breakDuration": breakDuration,
+      "settings": {
+        "weekday": { "start": weekdayStart, "end": weekdayEnd },
+        "weekend": { "start": weekendStart, "end": weekendEnd },
+        "sessionDuration": sessionDuration,
+        "breakDuration": breakDuration,
+      },
+      "updatedAt": FieldValue.serverTimestamp()
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -79,7 +76,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
     );
   }
 
-  /// 🔥 Haftalık slot oluşturma
+  /// Weekly slot generator stays same
   Future<void> generateSlotsForWeek() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final service = DailySlotService();
@@ -87,7 +84,8 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
     setState(() => generating = true);
 
     final now = DateTime.now();
-    final startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // Pazartesi
+    final startOfWeek =
+        now.subtract(Duration(days: now.weekday - 1)); // Monday
 
     for (int i = 0; i < 7; i++) {
       final d = startOfWeek.add(Duration(days: i));
@@ -107,19 +105,15 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
     );
   }
 
-  /// SAAT SEÇİCİ DİYALOĞU
   Future<String?> pickTime(String initial) async {
     final parts = initial.split(":");
-    final initialTime = TimeOfDay(
-      hour: int.parse(parts[0]),
-      minute: int.parse(parts[1]),
-    );
-
     final picked = await showTimePicker(
       context: context,
-      initialTime: initialTime,
+      initialTime: TimeOfDay(
+        hour: int.parse(parts[0]),
+        minute: int.parse(parts[1]),
+      ),
     );
-
     if (picked == null) return null;
 
     return "${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}";
@@ -129,9 +123,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
     return GestureDetector(
       onTap: () async {
         final newTime = await pickTime(value);
-        if (newTime != null) {
-          onChanged(newTime);
-        }
+        if (newTime != null) onChanged(newTime);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
@@ -218,15 +210,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                   const SizedBox(height: 10),
                   DropdownButtonFormField<int>(
                     value: sessionDuration,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide:
-                            const BorderSide(color: Color(0xFFD9C6C6)),
-                      ),
-                    ),
+                    decoration: _dropdownDecoration(),
                     items: const [
                       DropdownMenuItem(value: 30, child: Text("30 dakika")),
                       DropdownMenuItem(value: 40, child: Text("40 dakika")),
@@ -249,15 +233,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                   const SizedBox(height: 10),
                   DropdownButtonFormField<int>(
                     value: breakDuration,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide:
-                            const BorderSide(color: Color(0xFFD9C6C6)),
-                      ),
-                    ),
+                    decoration: _dropdownDecoration(),
                     items: const [
                       DropdownMenuItem(value: 5, child: Text("5 dakika")),
                       DropdownMenuItem(value: 10, child: Text("10 dakika")),
@@ -302,17 +278,30 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                         ),
                       ),
                       child: generating
-                          ? const CircularProgressIndicator(color: Colors.white)
+                          ? const CircularProgressIndicator(
+                              color: Colors.white)
                           : const Text(
                               "Haftalık Slotları Oluştur",
                               style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold),
                             ),
                     ),
                   ),
                 ],
               ),
             ),
+    );
+  }
+
+  InputDecoration _dropdownDecoration() {
+    return InputDecoration(
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFD9C6C6)),
+      ),
     );
   }
 }
