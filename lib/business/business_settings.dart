@@ -304,4 +304,5 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
       ),
     );
   }
+  
 }
