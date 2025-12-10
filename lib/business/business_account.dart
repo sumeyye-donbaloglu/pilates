@@ -24,6 +24,7 @@ class _BusinessAccountState extends State<BusinessAccount> {
     setState(() => _loading = true);
 
     try {
+      /// Firebase Auth – kullanıcıyı oluştur
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: _email.text.trim(),
         password: _password.text.trim(),
@@ -31,18 +32,36 @@ class _BusinessAccountState extends State<BusinessAccount> {
 
       final uid = userCredential.user!.uid;
 
+      /// 🔥 Firestore – işletme dökümanını kaydet (default ayarlarla)
       await _firestore.collection('users').doc(uid).set({
         'uid': uid,
         'businessName': _businessName.text.trim(),
         'location': _location.text.trim(),
         'email': _email.text.trim(),
         'role': 'business',
+
+        // 🔹 Reformer cihaz sayısı (başlangıç: 0)
+        'reformerCount': 0,
+
+        // 🔹 Varsayılan çalışma saatleri (kullanıcıya gösterilmez)
+        'weekdayStart': '08:00',
+        'weekdayEnd': '22:00',
+        'weekendStart': '08:00',
+        'weekendEnd': '22:00',
+
+        // 🔹 Varsayılan seans ayarları
+        'sessionDuration': 50, // dk
+        'breakDuration': 10,   // dk
+
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('İşletme hesabı başarıyla oluşturuldu!')),
       );
+
+      Navigator.pop(context);
+
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Hata: ${e.message}')),
@@ -100,13 +119,22 @@ class _BusinessAccountState extends State<BusinessAccount> {
               ),
               const SizedBox(height: 25),
 
-              TextField(controller: _businessName, decoration: customInput("İşletme Adı")),
+              TextField(
+                controller: _businessName,
+                decoration: customInput("İşletme Adı"),
+              ),
               const SizedBox(height: 16),
 
-              TextField(controller: _location, decoration: customInput("Konum")),
+              TextField(
+                controller: _location,
+                decoration: customInput("Konum"),
+              ),
               const SizedBox(height: 16),
 
-              TextField(controller: _email, decoration: customInput("E-posta")),
+              TextField(
+                controller: _email,
+                decoration: customInput("E-posta"),
+              ),
               const SizedBox(height: 16),
 
               TextField(
@@ -133,9 +161,9 @@ class _BusinessAccountState extends State<BusinessAccount> {
                   child: _loading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
-                    'Hesabı Oluştur',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-                  ),
+                          'Hesabı Oluştur',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                        ),
                 ),
               ),
 
@@ -157,8 +185,7 @@ class _BusinessAccountState extends State<BusinessAccount> {
                     style: TextStyle(
                       color: Color(0xFF6A4E4E),
                       fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
+                      fontWeight: FontWeight.w500),
                   ),
                 ),
               ),
