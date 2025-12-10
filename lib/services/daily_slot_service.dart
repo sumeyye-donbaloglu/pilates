@@ -3,35 +3,46 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class DailySlotService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// 🔹 İşletme ayarlarını çek
+  /// --------------------------------------------
+  /// 1) YENİ SETTINGS FORMATINI YÜKLE
+  /// --------------------------------------------
   Future<Map<String, dynamic>> _loadSettings(String businessId) async {
     final doc = await _firestore.collection('users').doc(businessId).get();
     final data = doc.data() ?? {};
 
+    final settings = data["settings"] ?? {};
+
     return {
-      'weekdayStart': data['weekdayStart'] ?? '08:00',
-      'weekdayEnd': data['weekdayEnd'] ?? '22:00',
-      'weekendStart': data['weekendStart'] ?? '08:00',
-      'weekendEnd': data['weekendEnd'] ?? '22:00',
-      'sessionDuration': data['sessionDuration'] ?? 50, // dk
-      'reformerCount': data['reformerCount'] ?? 1,
+      'weekdayStart': settings["weekday"]?["start"] ?? "08:00",
+      'weekdayEnd': settings["weekday"]?["end"] ?? "22:00",
+      'weekendStart': settings["weekend"]?["start"] ?? "08:00",
+      'weekendEnd': settings["weekend"]?["end"] ?? "22:00",
+      'sessionDuration': settings["sessionDuration"] ?? 50,
+      'breakDuration': settings["breakDuration"] ?? 10,
+      'reformerCount': settings["reformerCount"] ?? 1,
     };
   }
 
-  /// 🔹 "HH:mm" içinden sadece saat bilgisini al
-  int _extractHour(String time) {
-    final parts = time.split(':');
-    return int.parse(parts[0]);
+  /// String → DateTime
+  DateTime _parseTime(String date, String time) {
+    final parts = time.split(":");
+    return DateTime(
+      DateTime.parse(date).year,
+      DateTime.parse(date).month,
+      DateTime.parse(date).day,
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+    );
   }
 
-  /// 🔹 DateTime → "HH:mm"
-  String _timeToStr(DateTime t) {
+  /// DateTime → HH:mm
+  String _fmt(DateTime t) {
     return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
   }
 
-  /// 🔥 Belirli bir GÜN için SLOT OLUŞTUR (tam saat başı)
-  ///
-  /// Örn: date = "2025-12-01"
+  /// --------------------------------------------
+  /// 2) SLOT OLUŞTURMA - ARTIK MOLALI VE DOĞRU
+  /// --------------------------------------------
   Future<void> generateDailySlots(String businessId, String date) async {
     final dayRef = _firestore
         .collection('users')
@@ -39,48 +50,52 @@ class DailySlotService {
         .collection('dailySlots')
         .doc(date);
 
-    // Zaten varsa yeniden oluşturma (şimdilik)
-    if ((await dayRef.get()).exists) {
-      // İstersen buraya "overwrite" opsiyonu ekleriz
-      return;
-    }
+    if ((await dayRef.get()).exists) return;
 
     final settings = await _loadSettings(businessId);
 
-    final sessionDuration = settings['sessionDuration'] as int; // dk
-    final reformerCount = settings['reformerCount'] as int;
-
-    final dt = DateTime.parse(date);
     final isWeekend =
-        dt.weekday == DateTime.saturday || dt.weekday == DateTime.sunday;
+        DateTime.parse(date).weekday == 6 ||
+        DateTime.parse(date).weekday == 7;
 
-    final startStr =
-        isWeekend ? settings['weekendStart'] as String : settings['weekdayStart'] as String;
-    final endStr =
-        isWeekend ? settings['weekendEnd'] as String : settings['weekdayEnd'] as String;
+    final String startStr = isWeekend
+        ? settings['weekendStart']
+        : settings['weekdayStart'];
 
-    final startHour = _extractHour(startStr); // 08:00 → 8
-    final endHour = _extractHour(endStr);     // 22:00 → 22
+    final String endStr = isWeekend
+        ? settings['weekendEnd']
+        : settings['weekdayEnd'];
+
+    final sessionDuration = settings['sessionDuration'];
+    final breakDuration = settings['breakDuration'];
+    final reformerCount = settings['reformerCount'];
+
+    DateTime currentStart = _parseTime(date, startStr);
+    DateTime endLimit = _parseTime(date, endStr);
 
     final List<Map<String, dynamic>> slots = [];
 
-    // 🔥 Tam saat başı slotlar:
-    // 08:00, 09:00, 10:00 ... (endHour dahil değil)
-    for (int hour = startHour; hour < endHour; hour++) {
-      final start = DateTime(dt.year, dt.month, dt.day, hour, 0);
-      final end = start.add(Duration(minutes: sessionDuration));
+    while (currentStart.isBefore(endLimit)) {
+      DateTime currentEnd =
+          currentStart.add(Duration(minutes: sessionDuration));
+
+      if (currentEnd.isAfter(endLimit)) break;
 
       slots.add({
-        'time': _timeToStr(start),          // "08:00"
-        'endTime': _timeToStr(end),         // "08:50" gibi
-        'capacity': reformerCount,          // normal kapasite (cihaz sayısı)
+        'time': _fmt(currentStart),
+        'endTime': _fmt(currentEnd),
+        'capacity': reformerCount,
         'remaining': reformerCount,
         'bookedBy': <String>[],
         'demo': false,
+        'demoCapacity': 2,
         'demoReserved': 0,
-        'demoCapacity': 2,                  // demo max 2 kişi
         'demoUsers': <String>[],
       });
+
+      /// MOLA SÜRESİ EKLENDİ
+      currentStart =
+          currentEnd.add(Duration(minutes: breakDuration));
     }
 
     await dayRef.set({
@@ -90,7 +105,9 @@ class DailySlotService {
     });
   }
 
-  /// 🔹 Günün slotlarını çek
+  /// --------------------------------------------
+  /// 3) GÜNÜN SLOTLARINI ÇEK
+  /// --------------------------------------------
   Future<List<Map<String, dynamic>>> getSlotsForDay(
       String businessId, String date) async {
     final doc = await _firestore
@@ -102,11 +119,12 @@ class DailySlotService {
 
     if (!doc.exists) return [];
 
-    final raw = doc.data()?['slots'] as List<dynamic>? ?? [];
-    return List<Map<String, dynamic>>.from(raw);
+    return List<Map<String, dynamic>>.from(doc.data()?['slots'] ?? []);
   }
 
-  /// 🔥 NORMAL slot rezervasyonu
+  /// --------------------------------------------
+  /// 4) NORMAL REZERVASYON
+  /// --------------------------------------------
   Future<bool> bookSlot({
     required String businessId,
     required String date,
@@ -122,33 +140,27 @@ class DailySlotService {
     final doc = await ref.get();
     if (!doc.exists) return false;
 
-    final List<dynamic> slots = doc.data()?['slots'] ?? [];
-    bool updated = false;
+    final slots = List<Map<String, dynamic>>.from(doc.data()?['slots'] ?? []);
 
     for (var slot in slots) {
-      if (slot['time'] == time && slot['demo'] == false) {
-        if ((slot['remaining'] ?? 0) > 0) {
-          final List booked = slot['bookedBy'] ?? [];
-          if (!booked.contains(customerId)) {
-            booked.add(customerId);
-            slot['bookedBy'] = booked;
-            slot['remaining'] = (slot['remaining'] ?? 0) - 1;
-            updated = true;
+      if (slot['time'] == time && !slot['demo']) {
+        if (slot['remaining'] > 0) {
+          if (!slot['bookedBy'].contains(customerId)) {
+            slot['bookedBy'].add(customerId);
+            slot['remaining']--;
+            await ref.update({'slots': slots});
+            return true;
           }
         }
-        break;
       }
-    }
-
-    if (updated) {
-      await ref.update({'slots': slots});
-      return true;
     }
 
     return false;
   }
 
-  /// 🔥 DEMO TALEBİ OLUŞTUR (ALT KOLEKSİYON!)
+  /// --------------------------------------------
+  /// 5) DEMO TALEBİ ARTIK GLOBAL KOLEKSİYONDA
+  /// --------------------------------------------
   Future<void> sendDemoRequest({
     required String businessId,
     required String date,
@@ -156,140 +168,23 @@ class DailySlotService {
     required String customerId,
     required String name,
   }) async {
-    final reqRef = _firestore
+    await _firestore
         .collection('users')
         .doc(businessId)
-        .collection('dailySlots')
-        .doc(date)
         .collection('demoRequests')
-        .doc(time); // time bazlı id
-
-    await reqRef.set({
+        .add({
+      'date': date,
+      'time': time,
       'customerId': customerId,
-      'name': name,          // müşterinin adı
-      'date': date,          // kolay filtre için
-      'time': time,          // ekranda göstermek için
+      'name': name,
       'status': 'pending',
-      'requestedAt': FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
-  /// 🔥 DEMO ONAYLA
-  Future<void> approveDemo({
-    required String businessId,
-    required String date,
-    required String time,
-    required String customerId,
-  }) async {
-    final dayRef = _firestore
-        .collection('users')
-        .doc(businessId)
-        .collection('dailySlots')
-        .doc(date);
-
-    final doc = await dayRef.get();
-    if (!doc.exists) return;
-
-    final List<dynamic> slots = doc.data()?['slots'] ?? [];
-
-    for (var slot in slots) {
-      if (slot['time'] == time) {
-        slot['demo'] = true;
-        final currentDemoReserved = (slot['demoReserved'] ?? 0) as int;
-        final List demoUsers = slot['demoUsers'] ?? [];
-
-        if (!demoUsers.contains(customerId)) {
-          demoUsers.add(customerId);
-          slot['demoUsers'] = demoUsers;
-          slot['demoReserved'] = currentDemoReserved + 1;
-        }
-        break;
-      }
-    }
-
-    await dayRef.update({'slots': slots});
-
-    await _firestore
-        .collection('users')
-        .doc(businessId)
-        .collection('dailySlots')
-        .doc(date)
-        .collection('demoRequests')
-        .doc(time)
-        .update({'status': 'approved'});
-  }
-
-  /// 🔥 DEMO REDDET
-  Future<void> rejectDemo({
-    required String businessId,
-    required String date,
-    required String time,
-  }) async {
-    await _firestore
-        .collection('users')
-        .doc(businessId)
-        .collection('dailySlots')
-        .doc(date)
-        .collection('demoRequests')
-        .doc(time)
-        .update({'status': 'rejected'});
-  }
-
-  /// 🔹 Normal randevu iptali
-  Future<void> cancelSlot({
-    required String businessId,
-    required String date,
-    required String time,
-    required String customerId,
-  }) async {
-    final ref = _firestore
-        .collection('users')
-        .doc(businessId)
-        .collection('dailySlots')
-        .doc(date);
-
-    final doc = await ref.get();
-    if (!doc.exists) return;
-
-    final List<dynamic> slots = doc.data()?['slots'] ?? [];
-
-    for (var slot in slots) {
-      if (slot['time'] == time) {
-        final List booked = slot['bookedBy'] ?? [];
-        if (booked.contains(customerId)) {
-          booked.remove(customerId);
-          slot['bookedBy'] = booked;
-          slot['remaining'] = (slot['remaining'] ?? 0) + 1;
-        }
-        break;
-      }
-    }
-
-    await ref.update({'slots': slots});
-  }
-
-  /// 🔹 Tek bir slotu tamamen sil (fizyoterapist istemezse)
-  Future<void> deleteSlot({
-    required String businessId,
-    required String date,
-    required String time,
-  }) async {
-    final ref = _firestore
-        .collection('users')
-        .doc(businessId)
-        .collection('dailySlots')
-        .doc(date);
-
-    final doc = await ref.get();
-    if (!doc.exists) return;
-
-    final List<dynamic> slots = doc.data()?['slots'] ?? [];
-    slots.removeWhere((slot) => slot['time'] == time);
-
-    await ref.update({'slots': slots});
-  }
-
-  /// 🔹 İstenirse tüm günü resetleyip tekrar slot oluşturmak için
+  /// --------------------------------------------
+  /// 6) GÜNÜ RESETLE
+  /// --------------------------------------------
   Future<void> regenerateDay(String businessId, String date) async {
     final ref = _firestore
         .collection('users')
