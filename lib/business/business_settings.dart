@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../services/daily_slot_service.dart';
+import '../firestore_paths.dart';
 
 class BusinessSettingsScreen extends StatefulWidget {
   const BusinessSettingsScreen({super.key});
 
   @override
-  State<BusinessSettingsScreen> createState() => _BusinessSettingsScreenState();
+  State<BusinessSettingsScreen> createState() =>
+      _BusinessSettingsScreenState();
 }
 
 class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
   bool loading = true;
-  bool generating = false;
 
-  // Settings fields
   String weekdayStart = "08:00";
   String weekdayEnd = "22:00";
   String weekendStart = "08:00";
@@ -23,7 +22,8 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
   int sessionDuration = 50;
   int breakDuration = 10;
 
-  final _firestore = FirebaseFirestore.instance;
+  /// 🔴 İPTAL KURALI (İŞLETME BELİRLER)
+  int cancelBeforeHours = 6;
 
   @override
   void initState() {
@@ -31,76 +31,55 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
     loadSettings();
   }
 
-  /// 🔥 Load NEW settings structure
   Future<void> loadSettings() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
-    final doc = await _firestore.collection("users").doc(uid).get();
+    final doc = await FirestorePaths.businessDoc(uid).get();
 
-    if (!doc.exists || doc.data()!["settings"] == null) {
+    if (!doc.exists) {
       setState(() => loading = false);
       return;
     }
 
-    final settings = doc.data()!["settings"];
+    final settings = doc.data()!['settings'] ?? {};
 
     setState(() {
-      weekdayStart = settings["weekday"]["start"];
-      weekdayEnd = settings["weekday"]["end"];
-      weekendStart = settings["weekend"]["start"];
-      weekendEnd = settings["weekend"]["end"];
-      sessionDuration = settings["sessionDuration"];
-      breakDuration = settings["breakDuration"];
+      weekdayStart = settings['weekday']?['start'] ?? weekdayStart;
+      weekdayEnd = settings['weekday']?['end'] ?? weekdayEnd;
+      weekendStart = settings['weekend']?['start'] ?? weekendStart;
+      weekendEnd = settings['weekend']?['end'] ?? weekendEnd;
+      sessionDuration = settings['sessionDuration'] ?? sessionDuration;
+      breakDuration = settings['breakDuration'] ?? breakDuration;
+
+      /// 🔴 OKU
+      cancelBeforeHours =
+          settings['cancelBeforeHours'] ?? cancelBeforeHours;
+
       loading = false;
     });
   }
 
-  /// 🔥 Save UPDATED nested settings object
   Future<void> saveSettings() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
-    await _firestore.collection("users").doc(uid).update({
+    await FirestorePaths.businessDoc(uid).update({
       "settings": {
-        "weekday": { "start": weekdayStart, "end": weekdayEnd },
-        "weekend": { "start": weekendStart, "end": weekendEnd },
+        "weekday": {"start": weekdayStart, "end": weekdayEnd},
+        "weekend": {"start": weekendStart, "end": weekendEnd},
         "sessionDuration": sessionDuration,
         "breakDuration": breakDuration,
+
+        /// 🔴 KAYDET
+        "cancelBeforeHours": cancelBeforeHours,
       },
-      "updatedAt": FieldValue.serverTimestamp()
+      "updatedAt": FieldValue.serverTimestamp(),
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Ayarlar başarıyla kaydedildi!"),
-        backgroundColor: Color(0xFFE48989),
-      ),
-    );
-  }
-
-  /// Weekly slot generator stays same
-  Future<void> generateSlotsForWeek() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final service = DailySlotService();
-
-    setState(() => generating = true);
-
-    final now = DateTime.now();
-    final startOfWeek =
-        now.subtract(Duration(days: now.weekday - 1)); // Monday
-
-    for (int i = 0; i < 7; i++) {
-      final d = startOfWeek.add(Duration(days: i));
-      final dateStr =
-          "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
-
-      await service.generateDailySlots(uid, dateStr);
-    }
-
-    setState(() => generating = false);
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("Bu hafta için slotlar oluşturuldu."),
-        backgroundColor: Color(0xFF6A4CC3),
+        content: Text("Ayarlar kaydedildi"),
+        backgroundColor: Colors.green,
       ),
     );
   }
@@ -114,12 +93,14 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
         minute: int.parse(parts[1]),
       ),
     );
+
     if (picked == null) return null;
 
     return "${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}";
   }
 
-  Widget buildTimeField(String label, String value, Function(String) onChanged) {
+  Widget buildTimeField(
+      String label, String value, Function(String) onChanged) {
     return GestureDetector(
       onTap: () async {
         final newTime = await pickTime(value);
@@ -129,24 +110,14 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(color: const Color(0xFFD9C6C6)),
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFD9C6C6)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 15,
-                    color: Color(0xFF6A4E4E),
-                    fontWeight: FontWeight.w500)),
-            Text(
-              value,
-              style: const TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF6A4E4E),
-                  fontWeight: FontWeight.bold),
-            ),
+            Text(label),
+            Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -168,141 +139,96 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Hafta İçi Çalışma Saatleri",
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF6A4E4E)),
-                  ),
-                  const SizedBox(height: 10),
+                  const Text("Hafta İçi Çalışma Saatleri"),
+                  const SizedBox(height: 8),
                   buildTimeField("Başlangıç", weekdayStart,
                       (v) => setState(() => weekdayStart = v)),
                   const SizedBox(height: 10),
                   buildTimeField("Bitiş", weekdayEnd,
                       (v) => setState(() => weekdayEnd = v)),
 
-                  const SizedBox(height: 25),
+                  const SizedBox(height: 24),
 
-                  const Text(
-                    "Hafta Sonu Çalışma Saatleri",
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF6A4E4E)),
-                  ),
-                  const SizedBox(height: 10),
+                  const Text("Hafta Sonu Çalışma Saatleri"),
+                  const SizedBox(height: 8),
                   buildTimeField("Başlangıç", weekendStart,
                       (v) => setState(() => weekendStart = v)),
                   const SizedBox(height: 10),
                   buildTimeField("Bitiş", weekendEnd,
                       (v) => setState(() => weekendEnd = v)),
 
-                  const SizedBox(height: 25),
+                  const SizedBox(height: 24),
 
-                  const Text(
-                    "Seans Süresi",
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF6A4E4E)),
-                  ),
-                  const SizedBox(height: 10),
                   DropdownButtonFormField<int>(
                     value: sessionDuration,
-                    decoration: _dropdownDecoration(),
-                    items: const [
-                      DropdownMenuItem(value: 30, child: Text("30 dakika")),
-                      DropdownMenuItem(value: 40, child: Text("40 dakika")),
-                      DropdownMenuItem(value: 45, child: Text("45 dakika")),
-                      DropdownMenuItem(value: 50, child: Text("50 dakika")),
-                      DropdownMenuItem(value: 60, child: Text("60 dakika")),
-                    ],
-                    onChanged: (v) => setState(() => sessionDuration = v!),
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  const Text(
-                    "Mola Süresi",
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF6A4E4E)),
-                  ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<int>(
-                    value: breakDuration,
-                    decoration: _dropdownDecoration(),
-                    items: const [
-                      DropdownMenuItem(value: 5, child: Text("5 dakika")),
-                      DropdownMenuItem(value: 10, child: Text("10 dakika")),
-                      DropdownMenuItem(value: 15, child: Text("15 dakika")),
-                      DropdownMenuItem(value: 20, child: Text("20 dakika")),
-                    ],
-                    onChanged: (v) => setState(() => breakDuration = v!),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: saveSettings,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE48989),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                      child: const Text(
-                        "Kaydet",
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
+                    decoration: const InputDecoration(
+                      labelText: "Seans Süresi",
                     ),
+                    items: const [
+                      DropdownMenuItem(value: 30, child: Text("30 dk")),
+                      DropdownMenuItem(value: 40, child: Text("40 dk")),
+                      DropdownMenuItem(value: 50, child: Text("50 dk")),
+                      DropdownMenuItem(value: 60, child: Text("60 dk")),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => sessionDuration = v!),
                   ),
 
                   const SizedBox(height: 16),
 
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: generating ? null : generateSlotsForWeek,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6A4CC3),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                      child: generating
-                          ? const CircularProgressIndicator(
-                              color: Colors.white)
-                          : const Text(
-                              "Haftalık Slotları Oluştur",
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold),
-                            ),
+                  DropdownButtonFormField<int>(
+                    value: breakDuration,
+                    decoration: const InputDecoration(
+                      labelText: "Ara Süre",
                     ),
+                    items: const [
+                      DropdownMenuItem(value: 5, child: Text("5 dk")),
+                      DropdownMenuItem(value: 10, child: Text("10 dk")),
+                      DropdownMenuItem(value: 15, child: Text("15 dk")),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => breakDuration = v!),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  /// 🔴 İPTAL SÜRESİ AYARI (BURASI SENİN DEDİĞİN YER)
+                  const Text(
+                    "Randevu İptal Kuralı",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  DropdownButtonFormField<int>(
+                    value: cancelBeforeHours,
+                    decoration: const InputDecoration(
+                      labelText:
+                          "Müşteri en geç kaç saat önce iptal edebilir?",
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 1, child: Text("1 saat")),
+                      DropdownMenuItem(value: 2, child: Text("2 saat")),
+                      DropdownMenuItem(value: 4, child: Text("4 saat")),
+                      DropdownMenuItem(value: 6, child: Text("6 saat")),
+                      DropdownMenuItem(value: 12, child: Text("12 saat")),
+                      DropdownMenuItem(value: 24, child: Text("24 saat")),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => cancelBeforeHours = v!),
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  ElevatedButton(
+                    onPressed: saveSettings,
+                    child: const Text("Kaydet"),
                   ),
                 ],
               ),
             ),
     );
   }
-
-  InputDecoration _dropdownDecoration() {
-    return InputDecoration(
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFD9C6C6)),
-      ),
-    );
-  }
-  
 }

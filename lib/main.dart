@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'firebase_options.dart';
+import 'firestore_paths.dart';
+
 import 'welcome.dart';
 import 'business/business_home.dart';
 import 'customer/customer_home.dart';
@@ -21,44 +22,57 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   Future<Widget> _handleUser() async {
-    final user = FirebaseAuth.instance.currentUser;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
 
-    // Eğer giriş yapılmamışsa
-    if (user == null) return const WelcomeScreen();
+      // 1️⃣ Giriş yok
+      if (user == null) {
+        return const WelcomeScreen();
+      }
 
-    // Firestore’dan kullanıcı belgesini al
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
+      // 2️⃣ USERS → rol kontrolü
+      final userDoc = await FirestorePaths.userDoc(user.uid).get();
 
-    if (!doc.exists) return const WelcomeScreen();
+      if (!userDoc.exists) {
+        return const WelcomeScreen();
+      }
 
-    final data = doc.data()!;
-    final role = data['role'];
+      final data = userDoc.data()!;
+      final role = data['role'];
 
-    // 🔥 1) İşletmeyse direkt BusinessHome
-    if (role == "business") {
-      return const BusinessHomeScreen();
+      // 3️⃣ BUSINESS AKIŞI
+      if (role == "business") {
+        final businessDoc =
+            await FirestorePaths.businessDoc(user.uid).get();
+
+        // Business doc yoksa → onboarding'e düşür
+        if (!businessDoc.exists) {
+          return const WelcomeScreen();
+        }
+
+        return const BusinessHomeScreen();
+      }
+
+      // 4️⃣ CUSTOMER AKIŞI
+      final completed = data['bodyInfoCompleted'] == true;
+
+      if (!completed) {
+        return const BodyInfoOnboardingScreen();
+      }
+
+      return const CustomerHomeScreen();
+    } catch (e, s) {
+      debugPrint("HANDLE USER ERROR: $e");
+      debugPrintStack(stackTrace: s);
+      return const WelcomeScreen();
     }
-
-    // 🔥 2) Müşteriyse → önce bodyInfoCompleted kontrolü
-    final bool completed = data['bodyInfoCompleted'] ?? false;
-
-    if (!completed) {
-      return const BodyInfoOnboardingScreen(); // Vücut bilgisi ekranı
-    }
-
-    // 🔥 3) Tamamlanmışsa dashboard
-    return const CustomerHomeScreen();
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-
-      home: FutureBuilder(
+      home: FutureBuilder<Widget>(
         future: _handleUser(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
@@ -66,7 +80,6 @@ class MyApp extends StatelessWidget {
               body: Center(child: CircularProgressIndicator()),
             );
           }
-
           return snapshot.data!;
         },
       ),

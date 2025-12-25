@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Ekranlar
+import '../firestore_paths.dart';
 import '../reformer_management.dart';
-import 'business_settings.dart';
 import '../randevu_management.dart';
+import 'business_settings.dart';
+import '../welcome.dart';
+import 'business_profile_screen.dart';
+import 'business_requests.dart'; 
 
 class BusinessHomeScreen extends StatefulWidget {
   const BusinessHomeScreen({super.key});
@@ -25,154 +27,124 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
     fetchBusinessInfo();
   }
 
-  /// 🔥 ARTIK USERS DEĞİL → businessSettings koleksiyonu
   Future<void> fetchBusinessInfo() async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final doc = await FirestorePaths.businessDoc(uid).get();
+    if (!doc.exists) return;
 
-      final doc = await FirebaseFirestore.instance
-          .collection('businessSettings')
-          .doc(uid)
-          .get();
+    final info = doc.data()!['businessInfo'] ?? {};
+    setState(() {
+      businessName = info['name'] ?? "Salon";
+      location = info['location'] ?? "";
+      loading = false;
+    });
+  }
 
-      if (doc.exists) {
-        setState(() {
-          businessName = doc['businessName'] ?? "Salon Adı";
-          location = doc['location'] ?? "Konum bilgisi";
-          loading = false;
-        });
-      } else {
-        setState(() {
-          businessName = "Salon Adı";
-          location = "Konum bilgisi";
-          loading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        businessName = "Salon Adı";
-        location = "Konum bilgisi";
-        loading = false;
-      });
-    }
+  Future<void> logout() async {
+    await FirebaseAuth.instance.signOut();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      (_) => false,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final businessId = FirebaseAuth.instance.currentUser!.uid;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF6F6),
       appBar: AppBar(
         title: const Text("İşletme Paneli"),
         backgroundColor: const Color(0xFFE48989),
+        actions: [
+          IconButton(icon: const Icon(Icons.logout), onPressed: logout),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: loading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
                 children: [
-                  // ÜST KART
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                        )
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          businessName,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                  _menuCard(
+                    "Profilim",
+                    Icons.person,
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BusinessProfileScreen(
+                            businessId: businessId,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          location,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.black54,
+                      );
+                    },
+                  ),
+                  _menuCard(
+                    "Randevular",
+                    Icons.calendar_month,
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RandevuManagementScreen(
+                            businessId: businessId,
                           ),
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
 
-                  const SizedBox(height: 30),
-
-                  // DASHBOARD KUTULARI
-                  Expanded(
-                    child: GridView.count(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 15,
-                      mainAxisSpacing: 15,
-                      children: [
-                        // 1) Randevular — BAĞLANDI!
-                        _menuCard(
-                          "Randevular",
-                          Icons.calendar_month,
-                          () {
-                            final businessId =
-                                FirebaseAuth.instance.currentUser!.uid;
-
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => RandevuManagementScreen(
-                                  businessId: businessId,
-                                ),
-                              ),
-                            );
-                          },
+                  // ✅ YENİ KART — RANDEVU TALEPLERİ
+                  _menuCard(
+                    "Randevu Talepleri",
+                    Icons.mark_email_unread,
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const BusinessRequestsScreen(),
                         ),
+                      );
+                    },
+                  ),
 
-                        // 2) Reformer Yönetimi
-                        _menuCard(
-                          "Reformer Yönetimi",
-                          Icons.fitness_center,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    const ReformerManagementScreen(),
-                              ),
-                            );
-                          },
+                  _menuCard(
+                    "Reformer Yönetimi",
+                    Icons.fitness_center,
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const ReformerManagementScreen(),
                         ),
-
-                        // 3) Ayarlar
-                        _menuCard(
-                          "Ayarlar",
-                          Icons.settings,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    const BusinessSettingsScreen(),
-                              ),
-                            );
-                          },
+                      );
+                    },
+                  ),
+                  _menuCard(
+                    "Ayarlar",
+                    Icons.settings,
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const BusinessSettingsScreen(),
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
-      ),
+            ),
     );
   }
 
@@ -182,27 +154,23 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: const [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 10,
-              spreadRadius: 1,
-            )
+            BoxShadow(color: Colors.black12, blurRadius: 8),
           ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 42, color: const Color(0xFFE48989)),
-            const SizedBox(height: 10),
+            Icon(icon, size: 40, color: const Color(0xFFE48989)),
+            const SizedBox(height: 12),
             Text(
               title,
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
               ),
-            )
+            ),
           ],
         ),
       ),

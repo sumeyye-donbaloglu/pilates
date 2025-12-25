@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'firestore_paths.dart';
 
 class ReformerManagementScreen extends StatefulWidget {
   const ReformerManagementScreen({super.key});
@@ -11,17 +13,21 @@ class ReformerManagementScreen extends StatefulWidget {
 }
 
 class _ReformerManagementScreenState extends State<ReformerManagementScreen> {
-  final uid = FirebaseAuth.instance.currentUser!.uid;
+  late final String businessId;
 
-  /// 🔹 Reformer ekle ve users.reformerCount'u 1 artır
+  @override
+  void initState() {
+    super.initState();
+    businessId = FirebaseAuth.instance.currentUser!.uid;
+  }
+
+  /// ➕ Reformer ekle
   Future<void> addReformer() async {
-    final userRef =
-        FirebaseFirestore.instance.collection('users').doc(uid);
-    final reformersRef = userRef.collection('reformers');
+    final businessRef = FirestorePaths.businessDoc(businessId);
+    final reformersRef = FirestorePaths.businessReformers(businessId);
 
-    // mevcut cihaz sayısını öğren (sıradaki isim için)
-    final current = await reformersRef.get();
-    final newName = "Reformer ${current.docs.length + 1}";
+    final snapshot = await reformersRef.get();
+    final newName = "Reformer ${snapshot.docs.length + 1}";
 
     await reformersRef.add({
       'name': newName,
@@ -29,33 +35,33 @@ class _ReformerManagementScreenState extends State<ReformerManagementScreen> {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
-    // kullanıcı dokümanındaki reformerCount'u artır
-    await userRef.update({
+    await businessRef.update({
       'reformerCount': FieldValue.increment(1),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  /// 🔹 Reformer sil ve users.reformerCount'u 1 azalt
-  Future<void> deleteReformer(String id) async {
-    final userRef =
-        FirebaseFirestore.instance.collection('users').doc(uid);
-    final reformersRef = userRef.collection('reformers');
+  /// ❌ Reformer sil
+  Future<void> deleteReformer(String reformerId) async {
+    final businessRef = FirestorePaths.businessDoc(businessId);
+    final reformersRef = FirestorePaths.businessReformers(businessId);
 
-    await reformersRef.doc(id).delete();
+    await reformersRef.doc(reformerId).delete();
 
-    await userRef.update({
+    await businessRef.update({
       'reformerCount': FieldValue.increment(-1),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  /// 🔹 Cihaz durumunu güncelle (müsait/bakımda/kullanım dışı)
-  Future<void> updateStatus(String id, String value) async {
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('reformers')
-        .doc(id)
-        .update({'status': value});
+  /// 🔁 Durum güncelle
+  Future<void> updateStatus(String reformerId, String status) async {
+    await FirestorePaths.businessReformers(businessId)
+        .doc(reformerId)
+        .update({
+      'status': status,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   @override
@@ -69,14 +75,11 @@ class _ReformerManagementScreenState extends State<ReformerManagementScreen> {
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: addReformer,
-          )
+          ),
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('reformers')
+        stream: FirestorePaths.businessReformers(businessId)
             .orderBy('createdAt')
             .snapshots(),
         builder: (context, snapshot) {
@@ -90,7 +93,7 @@ class _ReformerManagementScreenState extends State<ReformerManagementScreen> {
             return const Center(
               child: Text(
                 "Henüz reformer eklenmemiş",
-                style: TextStyle(fontSize: 18, color: Colors.black54),
+                style: TextStyle(fontSize: 18),
               ),
             );
           }
@@ -114,14 +117,12 @@ class _ReformerManagementScreenState extends State<ReformerManagementScreen> {
                     BoxShadow(
                       color: Colors.black12,
                       blurRadius: 8,
-                      offset: Offset(0, 2),
-                    )
+                    ),
                   ],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // İsim + durum seçimi
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -157,8 +158,6 @@ class _ReformerManagementScreenState extends State<ReformerManagementScreen> {
                         ),
                       ],
                     ),
-
-                    // Silme butonu
                     IconButton(
                       icon:
                           const Icon(Icons.delete, color: Colors.red),

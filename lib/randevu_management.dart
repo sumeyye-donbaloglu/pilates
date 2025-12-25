@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'services/daily_slot_service.dart';
+import 'firestore_paths.dart';
 
 class RandevuManagementScreen extends StatefulWidget {
   final String businessId;
 
-  const RandevuManagementScreen({super.key, required this.businessId});
+  const RandevuManagementScreen({
+    super.key,
+    required this.businessId,
+  });
 
   @override
   State<RandevuManagementScreen> createState() =>
@@ -21,7 +25,7 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen>
   bool loading = false;
   List<Map<String, dynamic>> slots = [];
 
-  final _service = DailySlotService();
+  final DailySlotService _service = DailySlotService();
 
   @override
   void initState() {
@@ -30,35 +34,60 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen>
     loadSlots();
   }
 
-  String get formattedDate {
-    return "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
-  }
+  String get formattedDate =>
+      "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
 
+  // ------------------------------------------------
+  // SLOT YÜKLE
+  // ------------------------------------------------
   Future<void> loadSlots() async {
     setState(() => loading = true);
-    final result =
-        await _service.getSlotsForDay(widget.businessId, formattedDate);
-    setState(() {
-      slots = result;
-      loading = false;
-    });
+    try {
+      final result =
+          await _service.getSlotsForDay(widget.businessId, formattedDate);
+      if (!mounted) return;
+      setState(() => slots = result);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Slotlar yüklenemedi: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => loading = false);
+    }
   }
 
+  // ------------------------------------------------
+  // SLOT OLUŞTUR
+  // ------------------------------------------------
   Future<void> generateSlots() async {
     setState(() => loading = true);
-    await _service.generateDailySlots(widget.businessId, formattedDate);
-    await loadSlots();
+    try {
+      await _service.generateDailySlots(widget.businessId, formattedDate);
+      await loadSlots();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceAll('Exception: ', ''),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => loading = false);
+    }
   }
 
-  Future<void> deleteSlot(String time) async {
-    await _service.deleteSlot(
-      businessId: widget.businessId,
-      date: formattedDate,
-      time: time,
-    );
-    await loadSlots();
-  }
-
+  // ------------------------------------------------
+  // UI
+  // ------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -68,37 +97,25 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen>
         backgroundColor: const Color(0xFFE48989),
         bottom: TabBar(
           controller: tabController,
-          indicatorColor: Colors.white,
           tabs: const [
             Tab(text: "Seanslar"),
             Tab(text: "Demo Talepleri"),
           ],
         ),
-        actions: [
-          if (tabController.index == 0)
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () async {
-                await _service.regenerateDay(
-                    widget.businessId, formattedDate);
-                await loadSlots();
-              },
-            ),
-        ],
       ),
       body: TabBarView(
         controller: tabController,
         children: [
           _seansTab(),
-          _demoTab(),
+          _demoTab(), // şimdilik pasif
         ],
       ),
     );
   }
 
-  // --------------------------------------------------------
-  // 🔵 TAB 1 - NORMAL SEANSLAR
-  // --------------------------------------------------------
+  // ------------------------------------------------
+  // TAB 1 — SEANSLAR
+  // ------------------------------------------------
   Widget _seansTab() {
     return Column(
       children: [
@@ -106,7 +123,9 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen>
         _calendarPicker(),
         const SizedBox(height: 10),
         if (loading)
-          const Expanded(child: Center(child: CircularProgressIndicator()))
+          const Expanded(
+            child: Center(child: CircularProgressIndicator()),
+          )
         else if (slots.isEmpty)
           _emptySlotCard()
         else
@@ -115,114 +134,21 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen>
     );
   }
 
-  // --------------------------------------------------------
-  // 🟣 TAB 2 - DEMO TALEPLERİ
-  // --------------------------------------------------------
+  // ------------------------------------------------
+  // TAB 2 — DEMO (GEÇİCİ KAPALI)
+  // ------------------------------------------------
   Widget _demoTab() {
-    final ref = FirebaseFirestore.instance
-        .collection("users")
-        .doc(widget.businessId)
-        .collection("dailySlots")
-        .doc(formattedDate)
-        .collection("demoRequests")
-        .where("status", isEqualTo: "pending");
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: ref.snapshots(),
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (!snap.hasData || snap.data!.docs.isEmpty) {
-          return const Center(child: Text("Bu gün için bekleyen demo talebi yok."));
-        }
-
-        final docs = snap.data!.docs;
-
-        return ListView(
-          padding: const EdgeInsets.all(14),
-          children: docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            final time = data['time'] as String? ?? doc.id;
-            final name = data['name'] as String? ?? "Müşteri";
-
-            return Card(
-              color: const Color(0xFFE6D9FA),
-              margin: const EdgeInsets.only(bottom: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: ListTile(
-                title: Text(
-                  "Saat: $time",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text("Müşteri: $name"),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.check_circle, color: Colors.green),
-                      onPressed: () => _approveDemo(
-                        time: time,
-                        customerId: data['customerId'] as String,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.cancel, color: Colors.red),
-                      onPressed: () => _rejectDemo(
-                        time: time,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-        );
-      },
+    return const Center(
+      child: Text(
+        "Demo talepleri henüz aktif değil.",
+        style: TextStyle(fontSize: 16),
+      ),
     );
   }
 
-  // --------------------------------------------------------
-  // ✔ DEMO ONAY / REDDET
-  // --------------------------------------------------------
-
-  Future<void> _approveDemo({
-    required String time,
-    required String customerId,
-  }) async {
-    await _service.approveDemo(
-      businessId: widget.businessId,
-      date: formattedDate,
-      time: time,
-      customerId: customerId,
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Demo talebi onaylandı!")),
-    );
-  }
-
-  Future<void> _rejectDemo({
-    required String time,
-  }) async {
-    await _service.rejectDemo(
-      businessId: widget.businessId,
-      date: formattedDate,
-      time: time,
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Demo talebi reddedildi.")),
-    );
-  }
-
-  // --------------------------------------------------------
-  // TAKVİM ve SLOT LİSTESİ
-  // --------------------------------------------------------
-
+  // ------------------------------------------------
+  // TAKVİM
+  // ------------------------------------------------
   Widget _calendarPicker() {
     return GestureDetector(
       onTap: () async {
@@ -232,7 +158,6 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen>
           firstDate: DateTime(2024),
           lastDate: DateTime(2030),
         );
-
         if (picked != null) {
           setState(() => selectedDate = picked);
           await loadSlots();
@@ -253,125 +178,72 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen>
           children: [
             Text(
               "${selectedDate.day}.${selectedDate.month}.${selectedDate.year}",
-              style: const TextStyle(
-                fontSize: 18,
-                color: Color(0xFF6A4E4E),
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 18),
             ),
-            const Icon(Icons.calendar_month,
-                color: Color(0xFFE48989), size: 28),
+            const Icon(Icons.calendar_month),
           ],
         ),
       ),
     );
   }
 
+  // ------------------------------------------------
+  // SLOT YOKSA
+  // ------------------------------------------------
   Widget _emptySlotCard() {
     return Expanded(
       child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              "Bu gün için slot oluşturulmadı.",
-              style: TextStyle(fontSize: 17, color: Colors.black54),
-            ),
-            const SizedBox(height: 15),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE48989),
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onPressed: generateSlots,
-              child: const Text(
-                "Bu Gün İçin Slot Oluştur",
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
-            ),
-          ],
+        child: ElevatedButton(
+          onPressed: loading ? null : generateSlots,
+          child: const Text("Bu Gün İçin Slot Oluştur"),
         ),
       ),
     );
   }
 
+  // ------------------------------------------------
+  // SLOT LİSTESİ
+  // ------------------------------------------------
   Widget _slotList() {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: slots.length,
       itemBuilder: (context, index) {
         final slot = slots[index];
-        final time = slot["time"] as String;
-        final endTime = slot["endTime"] as String? ?? "";
-        final remaining = slot["remaining"] ?? 0;
-        final capacity = slot["capacity"] ?? 0;
+        final time = slot['time'];
+        final endTime = slot['endTime'] ?? '';
+        final remaining = slot['remaining'] ?? 0;
+        final capacity = slot['capacity'] ?? 0;
+
         final isFull = remaining == 0;
 
-        return GestureDetector(
-          onLongPress: () async {
-            final confirmed = await showDialog<bool>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: const Text("Slotu Sil"),
-                content: Text("$time saatindeki slotu silmek istiyor musun?"),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text("Vazgeç"),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text("Sil",
-                        style: TextStyle(color: Colors.red)),
-                  ),
-                ],
-              ),
-            );
-
-            if (confirmed == true) {
-              await deleteSlot(time);
-            }
-          },
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 14),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isFull ? const Color(0xFFFFE2E2) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [
-                BoxShadow(color: Colors.black12, blurRadius: 6),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      endTime.isEmpty ? time : "$time - $endTime",
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF6A4E4E),
-                      ),
-                    ),
-                    if (isFull)
-                      const Text("Dolu",
-                          style: TextStyle(fontSize: 14, color: Colors.red))
-                    else
-                      Text(
-                        "$remaining / $capacity müsait",
-                        style: const TextStyle(
-                            fontSize: 14, color: Colors.green),
-                      ),
-                  ],
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isFull ? const Color(0xFFFFE2E2) : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                endTime.isEmpty ? time : "$time - $endTime",
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                isFull
+                    ? "Dolu"
+                    : "$remaining / $capacity müsait",
+                style: TextStyle(
+                  color: isFull ? Colors.red : Colors.green,
+                ),
+              ),
+            ],
           ),
         );
       },
