@@ -17,9 +17,8 @@ class BusinessRequestsScreen extends StatelessWidget {
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('businesses')
-            .doc(businessId)
-            .collection('appointmentRequests')
+            .collection('appointment_requests')
+            .where('businessId', isEqualTo: businessId)
             .where('status', isEqualTo: 'pending')
             .orderBy('createdAt')
             .snapshots(),
@@ -59,11 +58,7 @@ class BusinessRequestsScreen extends StatelessWidget {
   }
 }
 
-
-
-
-
-
+// ------------------------------------------------------------
 
 class _RequestCard extends StatelessWidget {
   final String requestId;
@@ -99,14 +94,20 @@ class _RequestCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text("${data['date']} • ${data['time']} - ${data['endTime']}"),
+          Text("${data['date']} • ${data['time']}"),
+          const SizedBox(height: 6),
+          Text(
+            data['lessonType'] == 'demo'
+                ? "Demo Dersi"
+                : "Normal Ders",
+            style: const TextStyle(color: Colors.grey),
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () =>
-                      _approveRequest(context),
+                  onPressed: () => _approveRequest(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                   ),
@@ -116,8 +117,7 @@ class _RequestCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () =>
-                      _rejectRequest(context),
+                  onPressed: () => _rejectRequest(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
                   ),
@@ -136,9 +136,7 @@ class _RequestCard extends StatelessWidget {
   // ------------------------------------------------
   Future<void> _rejectRequest(BuildContext context) async {
     await FirebaseFirestore.instance
-        .collection('businesses')
-        .doc(businessId)
-        .collection('appointmentRequests')
+        .collection('appointment_requests')
         .doc(requestId)
         .update({'status': 'rejected'});
   }
@@ -150,11 +148,8 @@ class _RequestCard extends StatelessWidget {
     final firestore = FirebaseFirestore.instance;
 
     await firestore.runTransaction((tx) async {
-      final requestRef = firestore
-          .collection('businesses')
-          .doc(businessId)
-          .collection('appointmentRequests')
-          .doc(requestId);
+      final requestRef =
+          firestore.collection('appointment_requests').doc(requestId);
 
       final requestSnap = await tx.get(requestRef);
       if (!requestSnap.exists) {
@@ -162,57 +157,48 @@ class _RequestCard extends StatelessWidget {
       }
 
       final req = requestSnap.data()!;
-      final date = req['date'];
-      final time = req['time'];
       final customerId = req['customerId'];
+      final slotId = req['slotId'];
+      final lessonType = req['lessonType'];
 
-      // 🔹 Günlük slot
-      final dayRef = firestore
+      final slotRef = firestore
           .collection('businesses')
           .doc(businessId)
-          .collection('dailySlots')
-          .doc(date);
+          .collection('daily_slots')
+          .doc(slotId);
 
-      final daySnap = await tx.get(dayRef);
-      if (!daySnap.exists) {
-        throw Exception("Slot günü yok");
-      }
-
-      final slots =
-          List<Map<String, dynamic>>.from(daySnap['slots']);
-
-      bool updated = false;
-
-      for (final slot in slots) {
-        if (slot['time'] == time) {
-          if (slot['remaining'] <= 0) {
-            throw Exception("Slot dolu");
-          }
-          slot['remaining']--;
-          slot['bookedBy'].add(customerId);
-          updated = true;
-        }
-      }
-
-      if (!updated) {
+      final slotSnap = await tx.get(slotRef);
+      if (!slotSnap.exists) {
         throw Exception("Slot bulunamadı");
       }
 
+      final slot = slotSnap.data()!;
+      final used = slot['usedCapacity'] ?? 0;
+      final capacity = slot['capacity'];
+      final slotType = slot['slotType'];
+
+      if (slotType != null && slotType != lessonType) {
+        throw Exception("Slot farklı ders türüne kilitli");
+      }
+
+      if (used >= capacity) {
+        throw Exception("Slot dolu");
+      }
+
       // 🔹 Slot güncelle
-      tx.update(dayRef, {'slots': slots});
+      tx.update(slotRef, {
+        'usedCapacity': used + 1,
+        'slotType': slotType ?? lessonType,
+      });
 
-      // 🔹 Müşteri randevusu
-      final customerAppointmentRef = firestore
-          .collection('users')
-          .doc(customerId)
-          .collection('appointments')
-          .doc();
-
-      tx.set(customerAppointmentRef, {
+      // 🔹 Appointment oluştur
+      tx.set(firestore.collection('appointments').doc(), {
         'businessId': businessId,
-        'date': date,
-        'time': time,
-        'endTime': req['endTime'],
+        'customerId': customerId,
+        'slotId': slotId,
+        'date': req['date'],
+        'time': req['time'],
+        'lessonType': lessonType,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
