@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../firestore_paths.dart';
 import '../reformer_management.dart';
@@ -7,8 +8,8 @@ import '../randevu_management.dart';
 import 'business_settings.dart';
 import '../welcome.dart';
 import 'business_profile_screen.dart';
-import 'business_requests.dart'; 
-
+import 'business_requests.dart';
+import '../customer/notifications.dart'; // 🔔 EKLENDİ
 
 class BusinessHomeScreen extends StatefulWidget {
   const BusinessHomeScreen({super.key});
@@ -61,7 +62,49 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
         title: const Text("İşletme Paneli"),
         backgroundColor: const Color(0xFFE48989),
         actions: [
-          IconButton(icon: const Icon(Icons.logout), onPressed: logout),
+          // 🔔 BİLDİRİM ZİLİ — SADECE EKLENDİ
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('notifications')
+                .where('userId', isEqualTo: businessId)
+                .where('isRead', isEqualTo: false)
+                .snapshots(),
+            builder: (context, snapshot) {
+              final hasUnread =
+                  snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+
+              return IconButton(
+                icon: Stack(
+                  children: [
+                    const Icon(Icons.notifications),
+                    if (hasUnread)
+                      const Positioned(
+                        right: 0,
+                        top: 0,
+                        child: CircleAvatar(
+                          radius: 5,
+                          backgroundColor: Colors.red,
+                        ),
+                      ),
+                  ],
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationsScreen(),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+
+          // ❌ ÇIKARILMADI – AYNEN DURUYOR
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: logout,
+          ),
         ],
       ),
       body: loading
@@ -101,8 +144,6 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
                       );
                     },
                   ),
-
-                  // ✅ YENİ KART — RANDEVU TALEPLERİ
                   _menuCard(
                     "Randevu Talepleri",
                     Icons.mark_email_unread,
@@ -116,7 +157,6 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
                       );
                     },
                   ),
-
                   _menuCard(
                     "Reformer Yönetimi",
                     Icons.fitness_center,
@@ -178,5 +218,3 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
     );
   }
 }
-
-//commit update 

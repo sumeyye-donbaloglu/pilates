@@ -23,7 +23,7 @@ class _SlotListScreenState extends State<SlotListScreen> {
   bool loading = false;
 
   // --------------------------------------------------
-  // 📨 RANDEVU TALEBİ GÖNDER
+  // 📨 RANDEVU TALEBİ + 🔔 İŞLETME BİLDİRİMİ
   // --------------------------------------------------
   Future<void> requestSlot({
     required String slotId,
@@ -32,25 +32,58 @@ class _SlotListScreenState extends State<SlotListScreen> {
   }) async {
     if (loading) return;
 
-    final confirmed = await showDialog<bool>(
+    String lessonType = 'normal';
+
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Randevu Talebi"),
-        content: Text(
-          "${widget.date} • $time - $endTime\n"
-          "Bu seans için talep göndermek istiyor musun?",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Vazgeç"),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Talep Gönder"),
-          ),
-        ],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setStateSheet) {
+            return Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "${widget.date} • $time - $endTime",
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text("Ders Türü"),
+                  RadioListTile(
+                    title: const Text("Normal Ders"),
+                    value: 'normal',
+                    groupValue: lessonType,
+                    onChanged: (v) =>
+                        setStateSheet(() => lessonType = v!),
+                  ),
+                  RadioListTile(
+                    title: const Text("Demo Dersi"),
+                    value: 'demo',
+                    groupValue: lessonType,
+                    onChanged: (v) =>
+                        setStateSheet(() => lessonType = v!),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () =>
+                          Navigator.pop(context, true),
+                      child: const Text("Talep Gönder"),
+                    ),
+                  )
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
 
     if (confirmed != true) return;
@@ -59,7 +92,7 @@ class _SlotListScreenState extends State<SlotListScreen> {
     final firestore = FirebaseFirestore.instance;
 
     try {
-      // 🔒 Aynı slot için pending talep var mı?
+      // 🔎 Aynı slot için bekleyen talep var mı?
       final existing = await firestore
           .collection('appointment_requests')
           .where('customerId', isEqualTo: uid)
@@ -69,7 +102,7 @@ class _SlotListScreenState extends State<SlotListScreen> {
           .get();
 
       if (existing.docs.isNotEmpty) {
-        throw Exception("Bu seans için zaten bekleyen bir talebin var.");
+        throw Exception("Bu seans için bekleyen talebin var.");
       }
 
       // 👤 Müşteri adı
@@ -77,38 +110,52 @@ class _SlotListScreenState extends State<SlotListScreen> {
           await firestore.collection('users').doc(uid).get();
       final customerName = userDoc.data()?['name'] ?? 'Müşteri';
 
-      // 📨 Talep oluştur
-      await firestore.collection('appointment_requests').add({
+      // 📌 TALEP OLUŞTUR
+      final requestRef =
+          await firestore.collection('appointment_requests').add({
         'businessId': widget.businessId,
         'customerId': uid,
         'customerName': customerName,
         'slotId': slotId,
         'date': widget.date,
         'time': time,
-        'lessonType': 'normal', // demo | normal (şimdilik normal)
+        'lessonType': lessonType,
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Talebin işletmeye iletildi ⏳"),
-          backgroundColor: Colors.green,
-        ),
-      );
+      // 🔔 İŞLETMEYE BİLDİRİM
+      await firestore.collection('notifications').add({
+        'userId': widget.businessId, // 🔴 İŞLETME UID
+        'title': 'Yeni Randevu Talebi',
+        'message':
+            '$customerName • ${widget.date} $time için randevu talebi gönderdi',
+        'type': 'appointment_request',
+        'isRead': false,
+        'relatedRequestId': requestRef.id,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Talep gönderildi ⏳"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text(e.toString().replaceAll("Exception: ", "")),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text(e.toString().replaceAll("Exception: ", "")),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      if (!mounted) return;
-      setState(() => loading = false);
+      if (mounted) setState(() => loading = false);
     }
   }
 
@@ -138,9 +185,7 @@ class _SlotListScreenState extends State<SlotListScreen> {
           final slots = snapshot.data!.docs;
 
           if (slots.isEmpty) {
-            return const Center(
-              child: Text("Bu tarih için seans yok."),
-            );
+            return const Center(child: Text("Seans yok"));
           }
 
           return ListView.builder(
@@ -148,7 +193,12 @@ class _SlotListScreenState extends State<SlotListScreen> {
             itemCount: slots.length,
             itemBuilder: (context, index) {
               final slotDoc = slots[index];
-              final slot = slotDoc.data() as Map<String, dynamic>;
+              final slot =
+                  slotDoc.data() as Map<String, dynamic>;
+
+              final used = slot['usedCapacity'] ?? 0;
+              final capacity = slot['capacity'];
+              final slotType = slot['slotType'];
 
               return StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -160,10 +210,14 @@ class _SlotListScreenState extends State<SlotListScreen> {
                     .snapshots(),
                 builder: (context, reqSnap) {
                   final hasPending =
-                      reqSnap.hasData && reqSnap.data!.docs.isNotEmpty;
+                      reqSnap.hasData &&
+                          reqSnap.data!.docs.isNotEmpty;
+
+                  final isDisabled =
+                      hasPending || used >= capacity;
 
                   return GestureDetector(
-                    onTap: hasPending
+                    onTap: isDisabled
                         ? null
                         : () => requestSlot(
                               slotId: slotDoc.id,
@@ -171,7 +225,7 @@ class _SlotListScreenState extends State<SlotListScreen> {
                               endTime: slot['endTime'],
                             ),
                     child: Opacity(
-                      opacity: hasPending ? 0.6 : 1,
+                      opacity: isDisabled ? 0.6 : 1,
                       child: Container(
                         margin:
                             const EdgeInsets.only(bottom: 12),
@@ -180,11 +234,6 @@ class _SlotListScreenState extends State<SlotListScreen> {
                           color: Colors.white,
                           borderRadius:
                               BorderRadius.circular(14),
-                          boxShadow: const [
-                            BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 6),
-                          ],
                         ),
                         child: Row(
                           mainAxisAlignment:
@@ -197,24 +246,12 @@ class _SlotListScreenState extends State<SlotListScreen> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            hasPending
-                                ? const Text(
-                                    "⏳ Talep Gönderildi",
-                                    style: TextStyle(
-                                      color: Colors.orange,
-                                      fontWeight:
-                                          FontWeight.bold,
-                                    ),
-                                  )
-                                : const Text(
-                                    "Talep Gönder",
-                                    style: TextStyle(
-                                      color:
-                                          Color(0xFF7A4F4F),
-                                      fontWeight:
-                                          FontWeight.bold,
-                                    ),
-                                  ),
+                            _buildBadge(
+                              hasPending: hasPending,
+                              used: used,
+                              capacity: capacity,
+                              slotType: slotType,
+                            ),
                           ],
                         ),
                       ),
@@ -225,6 +262,64 @@ class _SlotListScreenState extends State<SlotListScreen> {
             },
           );
         },
+      ),
+    );
+  }
+
+  // --------------------------------------------------
+  // BADGE
+  // --------------------------------------------------
+  Widget _buildBadge({
+    required bool hasPending,
+    required int used,
+    required int capacity,
+    required String? slotType,
+  }) {
+    if (hasPending) {
+      return const Text(
+        "⏳ Talep Gönderildi",
+        style: TextStyle(
+          color: Colors.orange,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+    }
+
+    if (used >= capacity) {
+      return const Text(
+        "🚫 Dolu",
+        style: TextStyle(
+          color: Colors.red,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+    }
+
+    if (slotType == 'demo') {
+      return const Text(
+        "🔒 Demo",
+        style: TextStyle(
+          color: Colors.purple,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+    }
+
+    if (slotType == 'normal') {
+      return const Text(
+        "🔒 Normal",
+        style: TextStyle(
+          color: Colors.blueGrey,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+    }
+
+    return const Text(
+      "Talep Gönder",
+      style: TextStyle(
+        color: Color(0xFF7A4F4F),
+        fontWeight: FontWeight.bold,
       ),
     );
   }

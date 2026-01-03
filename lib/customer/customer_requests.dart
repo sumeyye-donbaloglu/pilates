@@ -17,7 +17,7 @@ class CustomerRequestsScreen extends StatelessWidget {
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('appointment_requests')
+            .collection('appointmentRequests') // ✅ DÜZELTİLDİ
             .where('customerId', isEqualTo: customerId)
             .orderBy('createdAt', descending: true)
             .snapshots(),
@@ -145,7 +145,7 @@ class _CustomerRequestCard extends StatelessWidget {
                 TextButton(
                   onPressed: () async {
                     await FirebaseFirestore.instance
-                        .collection('appointment_requests')
+                        .collection('appointmentRequests') // ✅
                         .doc(requestId)
                         .update({'status': 'rejected'});
 

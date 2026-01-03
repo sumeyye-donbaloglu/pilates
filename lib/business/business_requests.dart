@@ -23,12 +23,28 @@ class BusinessRequestsScreen extends StatelessWidget {
             .orderBy('createdAt')
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          // LOADING
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final docs = snapshot.data!.docs;
+          // ERROR
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  "Firestore hatası:\n\n${snapshot.error}",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
+            );
+          }
 
+          final docs = snapshot.data?.docs ?? [];
+
+          // EMPTY
           if (docs.isEmpty) {
             return const Center(
               child: Text(
@@ -38,6 +54,7 @@ class BusinessRequestsScreen extends StatelessWidget {
             );
           }
 
+          // DATA
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: docs.length,
@@ -59,7 +76,8 @@ class BusinessRequestsScreen extends StatelessWidget {
 }
 
 // ------------------------------------------------------------
-
+// REQUEST CARD
+// ------------------------------------------------------------
 class _RequestCard extends StatelessWidget {
   final String requestId;
   final String businessId;
@@ -132,17 +150,37 @@ class _RequestCard extends StatelessWidget {
   }
 
   // ------------------------------------------------
-  // ❌ REDDET
+  // REDDET
   // ------------------------------------------------
   Future<void> _rejectRequest(BuildContext context) async {
-    await FirebaseFirestore.instance
-        .collection('appointment_requests')
-        .doc(requestId)
-        .update({'status': 'rejected'});
+    final firestore = FirebaseFirestore.instance;
+
+    await firestore.runTransaction((tx) async {
+      final ref =
+          firestore.collection('appointment_requests').doc(requestId);
+
+      final snap = await tx.get(ref);
+      if (!snap.exists) return;
+
+      final data = snap.data()!;
+      final customerId = data['customerId'];
+
+      tx.update(ref, {'status': 'rejected'});
+
+      tx.set(firestore.collection('notifications').doc(), {
+        'userId': customerId,
+        'title': 'Randevu Reddedildi',
+        'message':
+            '${data['date']} ${data['time']} randevu talebin reddedildi',
+        'type': 'appointment',
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   // ------------------------------------------------
-  // ✅ ONAYLA (TRANSACTION)
+  // ONAYLA (TEK VE DOĞRU YER)
   // ------------------------------------------------
   Future<void> _approveRequest(BuildContext context) async {
     final firestore = FirebaseFirestore.instance;
@@ -161,9 +199,14 @@ class _RequestCard extends StatelessWidget {
       final slotId = req['slotId'];
       final lessonType = req['lessonType'];
 
-      final slotRef = firestore
-          .collection('businesses')
-          .doc(businessId)
+      // 🔹 BUSINESS INFO (isim için)
+      final businessRef =
+          firestore.collection('businesses').doc(businessId);
+      final businessSnap = await tx.get(businessRef);
+      final businessName =
+          businessSnap.data()?['businessInfo']?['name'] ?? 'Salon';
+
+      final slotRef = businessRef
           .collection('daily_slots')
           .doc(slotId);
 
@@ -185,15 +228,16 @@ class _RequestCard extends StatelessWidget {
         throw Exception("Slot dolu");
       }
 
-      // 🔹 Slot güncelle
+      // SLOT UPDATE
       tx.update(slotRef, {
         'usedCapacity': used + 1,
         'slotType': slotType ?? lessonType,
       });
 
-      // 🔹 Appointment oluştur
+      // APPOINTMENT (SADECE BURADA YAZILIYOR)
       tx.set(firestore.collection('appointments').doc(), {
         'businessId': businessId,
+        'businessName': businessName,
         'customerId': customerId,
         'slotId': slotId,
         'date': req['date'],
@@ -202,8 +246,19 @@ class _RequestCard extends StatelessWidget {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // 🔹 Talep durumu
+      // REQUEST STATUS
       tx.update(requestRef, {'status': 'approved'});
+
+      // NOTIFICATION (TEK)
+      tx.set(firestore.collection('notifications').doc(), {
+        'userId': customerId,
+        'title': 'Randevu Onaylandı',
+        'message':
+            '${req['date']} ${req['time']} randevun onaylandı',
+        'type': 'appointment',
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
     });
 
     if (context.mounted) {

@@ -3,9 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class DailySlotService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// ----------------------------------------------------
-  /// 🔹 SETTINGS + AVAILABLE REFORMER SAYISI
-  /// ----------------------------------------------------
+  // ----------------------------------------------------
+  // SETTINGS + AVAILABLE REFORMER COUNT
+  // ----------------------------------------------------
   Future<Map<String, dynamic>> _loadSettingsAndCapacity(
       String businessId) async {
     final businessRef =
@@ -21,8 +21,7 @@ class DailySlotService {
         await businessRef.collection('reformers').get();
 
     final availableCount = reformersSnap.docs.where((doc) {
-      final reformer =
-          Map<String, dynamic>.from(doc.data());
+      final reformer = Map<String, dynamic>.from(doc.data());
       return reformer['status'] == 'available';
     }).length;
 
@@ -38,8 +37,8 @@ class DailySlotService {
   }
 
   DateTime _parseTime(String date, String time) {
-    final parts = time.split(':');
     final d = DateTime.parse(date);
+    final parts = time.split(':');
     return DateTime(
       d.year,
       d.month,
@@ -52,26 +51,17 @@ class DailySlotService {
   String _fmt(DateTime t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
-  /// ----------------------------------------------------
-  /// 🔹 GÜNLÜK SLOT OLUŞTUR
-  /// ----------------------------------------------------
+  // ----------------------------------------------------
+  // ✅ SLOT OLUŞTUR (BUGÜN PROBLEMİNİN ÇÖZÜLDÜĞÜ YER)
+  // ----------------------------------------------------
   Future<void> generateDailySlots(
       String businessId, String date) async {
-    final ref = _firestore
-        .collection('businesses')
-        .doc(businessId)
-        .collection('dailySlots')
-        .doc(date);
-
-    if ((await ref.get()).exists) return;
-
     final config = await _loadSettingsAndCapacity(businessId);
 
-    final int capacity = config['capacity'] as int;
+    final int capacity = config['capacity'];
 
     if (capacity == 0) {
-      throw Exception(
-          'Müsait reformer yok. Slot oluşturulamaz.');
+      throw Exception("Müsait reformer yok. Slot oluşturulamaz.");
     }
 
     final parsedDate = DateTime.parse(date);
@@ -83,59 +73,68 @@ class DailySlotService {
     final endStr =
         isWeekend ? config['weekendEnd'] : config['weekdayEnd'];
 
-    final int sessionDuration =
-        config['sessionDuration'] as int;
-    final int breakDuration =
-        config['breakDuration'] as int;
+    final int sessionDuration = config['sessionDuration'];
+    final int breakDuration = config['breakDuration'];
 
     DateTime current = _parseTime(date, startStr);
     final endLimit = _parseTime(date, endStr);
 
-    final List<Map<String, dynamic>> slots = [];
+    final batch = _firestore.batch();
 
     while (current.isBefore(endLimit)) {
       final end =
           current.add(Duration(minutes: sessionDuration));
       if (end.isAfter(endLimit)) break;
 
-      slots.add({
-        'time': _fmt(current),
-        'endTime': _fmt(end),
-        'capacity': capacity,
-        'remaining': capacity,
-        'bookedBy': <String>[],
-      });
+      final startTime = _fmt(current);
+      final endTime = _fmt(end);
+
+      final slotId =
+          '${date}_${startTime.replaceAll(':', '-')}';
+
+      final slotRef = _firestore
+          .collection('businesses')
+          .doc(businessId)
+          .collection('daily_slots')
+          .doc(slotId);
+
+      final exists = await slotRef.get();
+      if (!exists.exists) {
+        batch.set(slotRef, {
+          'date': date,
+          'time': startTime,
+          'endTime': endTime,
+          'capacity': capacity,
+          'usedCapacity': 0,
+          'slotType': null,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
 
       current = end.add(Duration(minutes: breakDuration));
     }
 
-    await ref.set({
-      'date': date,
-      'slots': slots,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    await batch.commit();
   }
 
-  /// ----------------------------------------------------
-  /// 🔹 SLOT LİSTELE
-  /// ----------------------------------------------------
+  // ----------------------------------------------------
+  // SLOT GETİR
+  // ----------------------------------------------------
   Future<List<Map<String, dynamic>>> getSlotsForDay(
       String businessId, String date) async {
-    final doc = await _firestore
+    final snap = await _firestore
         .collection('businesses')
         .doc(businessId)
-        .collection('dailySlots')
-        .doc(date)
+        .collection('daily_slots')
+        .where('date', isEqualTo: date)
+        .orderBy('time')
         .get();
 
-    if (!doc.exists) return [];
-
-    final data =
-        Map<String, dynamic>.from(doc.data()!);
-    final List rawSlots = data['slots'] ?? [];
-
-    return rawSlots
-        .map((e) => Map<String, dynamic>.from(e))
+    return snap.docs
+        .map((doc) => {
+              'id': doc.id,
+              ...doc.data(),
+            })
         .toList();
   }
 }

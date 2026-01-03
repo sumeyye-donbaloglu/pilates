@@ -20,6 +20,16 @@ class _BodyInfoOnboardingScreenState extends State<BodyInfoOnboardingScreen> {
   final TextEditingController fatController = TextEditingController();
 
   @override
+  void dispose() {
+    heightController.dispose();
+    weightController.dispose();
+    waistController.dispose();
+    hipController.dispose();
+    fatController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFF6F6),
@@ -35,7 +45,6 @@ class _BodyInfoOnboardingScreenState extends State<BodyInfoOnboardingScreen> {
           ),
         ),
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(22),
         child: Column(
@@ -46,40 +55,69 @@ class _BodyInfoOnboardingScreenState extends State<BodyInfoOnboardingScreen> {
             _buildField("Bel Çevresi (cm)", waistController),
             _buildField("Kalça Çevresi (cm)", hipController),
             _buildField("Yağ Oranı (%) - opsiyonel", fatController),
-
             const SizedBox(height: 30),
-
             Center(
               child: ElevatedButton(
                 onPressed: () async {
-                  final uid = FirebaseAuth.instance.currentUser!.uid;
+                  // 🔐 GÜVENLİ AUTH KONTROLÜ
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user == null) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content:
+                            Text("Kullanıcı oturumu henüz hazır değil"),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
 
-                  await FirebaseFirestore.instance
-                      .collection("users")
-                      .doc(uid)
-                      .update({
-                    "bodyInfoCompleted": true,
-                    "bodyInfo": {
-                      "height": heightController.text.trim(),
-                      "weight": weightController.text.trim(),
-                      "waist": waistController.text.trim(),
-                      "hip": hipController.text.trim(),
-                      "fatPercent": fatController.text.trim(),
-                      "createdAt": Timestamp.now(),
-                    }
-                  });
+                  final uid = user.uid;
 
-                  // Dashboard'a yönlendir
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const CustomerHomeScreen()),
-                  );
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection("users")
+                        .doc(uid)
+                        .update({
+                      "bodyInfoCompleted": true,
+                      "bodyInfo": {
+                        "height": heightController.text.trim(),
+                        "weight": weightController.text.trim(),
+                        "waist": waistController.text.trim(),
+                        "hip": hipController.text.trim(),
+                        "fatPercent": fatController.text.trim(),
+                        "createdAt": Timestamp.now(),
+                      }
+                    });
+
+                    if (!mounted) return;
+
+                    // Dashboard'a yönlendir
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CustomerHomeScreen(),
+                      ),
+                    );
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          e.toString().replaceAll("Exception: ", ""),
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF7A4F4F),
                   padding: const EdgeInsets.symmetric(
-                      vertical: 16, horizontal: 40),
+                    vertical: 16,
+                    horizontal: 40,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),

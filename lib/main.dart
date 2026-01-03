@@ -10,6 +10,8 @@ import 'business/business_home.dart';
 import 'customer/customer_home.dart';
 import 'customer/body_info.dart';
 
+import 'theme/app_theme.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -21,16 +23,19 @@ Future<void> main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  // --------------------------------------------------
+  // 🔁 LOGIN + ROLE + ONBOARDING AKIŞI
+  // --------------------------------------------------
   Future<Widget> _handleUser() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
 
-      // 1️⃣ Giriş yok
+      // 1️⃣ GİRİŞ YOK
       if (user == null) {
         return const WelcomeScreen();
       }
 
-      // 2️⃣ USERS → rol kontrolü
+      // 2️⃣ USERS → ROL KONTROLÜ
       final userDoc = await FirestorePaths.userDoc(user.uid).get();
 
       if (!userDoc.exists) {
@@ -45,7 +50,7 @@ class MyApp extends StatelessWidget {
         final businessDoc =
             await FirestorePaths.businessDoc(user.uid).get();
 
-        // Business doc yoksa → onboarding'e düşür
+        // Business doc yoksa → güvenli fallback
         if (!businessDoc.exists) {
           return const WelcomeScreen();
         }
@@ -68,16 +73,25 @@ class MyApp extends StatelessWidget {
     }
   }
 
+  // --------------------------------------------------
+  // 🧱 APP ROOT
+  // --------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+
+      // 🎨 GLOBAL TEMA
+      theme: AppTheme.lightTheme,
+
       home: FutureBuilder<Widget>(
         future: _handleUser(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
             );
           }
           return snapshot.data!;

@@ -6,6 +6,7 @@ import 'body_info.dart';
 import 'business_list.dart';
 import 'customer_appointments.dart';
 import '../welcome.dart';
+import 'notifications.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -37,7 +38,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     final data = doc.data()!;
     final completed = data['bodyInfoCompleted'] == true;
 
-    // 🔁 Body bilgisi yoksa onboarding
     if (!completed) {
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -60,7 +60,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
 
-    // ✅ Login yerine Welcome'a dön
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const WelcomeScreen()),
@@ -70,24 +69,60 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF6F6),
-
       appBar: AppBar(
         backgroundColor: const Color(0xFFFFF6F6),
         elevation: 0,
-
-        // ✅ sola geri gibi değil ama solda bir ikon istiyorsan buraya koyarız
         leading: const SizedBox.shrink(),
-
         actions: [
+          // 🔔 BİLDİRİM ZİLİ
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('notifications')
+                .where('userId', isEqualTo: uid)
+                .where('isRead', isEqualTo: false)
+                .snapshots(),
+            builder: (context, snapshot) {
+              final hasUnread =
+                  snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+
+              return IconButton(
+                icon: Stack(
+                  children: [
+                    const Icon(Icons.notifications,
+                        color: Color(0xFF7A4F4F)),
+                    if (hasUnread)
+                      const Positioned(
+                        right: 0,
+                        top: 0,
+                        child: CircleAvatar(
+                          radius: 5,
+                          backgroundColor: Colors.red,
+                        ),
+                      ),
+                  ],
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationsScreen(),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+
           IconButton(
             icon: const Icon(Icons.logout, color: Color(0xFF7A4F4F)),
             onPressed: logout,
           ),
         ],
       ),
-
       body: SafeArea(
         child: loading
             ? const Center(child: CircularProgressIndicator())
@@ -96,7 +131,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 👋 Selamlama
                     Text(
                       "Hoş geldin $name 👋",
                       style: const TextStyle(
@@ -113,15 +147,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         color: Color(0xFF9E6B6B),
                       ),
                     ),
-
                     const SizedBox(height: 22),
-
-                    // 📊 Vücut Bilgileri
                     _BodyInfoCard(bodyInfo: bodyInfo!),
-
                     const SizedBox(height: 18),
-
-                    // ✅ RANDEVULARIM (EKSİK OLAN KISIM BUYDU)
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -129,25 +157,18 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const CustomerAppointmentsScreen(),
+                              builder: (_) =>
+                                  const CustomerAppointmentsScreen(),
                             ),
                           );
                         },
                         icon: const Icon(Icons.event_note),
-                        label: const Text(
-                          "Randevularım",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                        label: const Text("Randevularım"),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFB07C7C),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 16,
-                          ),
+                              horizontal: 18, vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
@@ -155,10 +176,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 14),
-
-                    // 🚀 Salonlar
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -166,7 +184,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const BusinessListScreen(),
+                              builder: (_) =>
+                                  const BusinessListScreen(),
                             ),
                           );
                         },
@@ -189,7 +208,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         ),
                       ),
                     ),
-
                     const Spacer(),
                   ],
                 ),
@@ -199,7 +217,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   }
 }
 
-/// 📦 VÜCUT BİLGİSİ KARTI
+// -----------------------------
+
 class _BodyInfoCard extends StatelessWidget {
   final Map<String, dynamic> bodyInfo;
 

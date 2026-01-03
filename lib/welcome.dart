@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+
 import 'business/business_account.dart';
 import 'customer/customer_account.dart';
 import 'login_screen.dart';
+import 'theme/app_colors.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -9,63 +11,85 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9F9),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 40),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // --------------------------------------------------
+              // 🔝 LOGO + BAŞLIK
+              // --------------------------------------------------
               Column(
                 children: [
-                  const Icon(
-                    Icons.fitness_center,
-                    size: 100,
-                    color: Color(0xFFE8CFCF),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    "Reformerly'e Hoşgeldiniz",
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF6A4E4E),
+                  Container(
+                    width: 110,
+                    height: 110,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.15),
+                      shape: BoxShape.circle,
                     ),
-                    textAlign: TextAlign.center,
+                    child: const Icon(
+                      Icons.fitness_center,
+                      size: 56,
+                      color: AppColors.primary,
+                    ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 24),
                   const Text(
-                    "Pilates salonları ve üyeler için randevu yönetim sistemi",
+                    "Reformerly'e Hoş Geldiniz",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Color(0xFF8C6B6B),
-                      fontSize: 14,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryDark,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "Pilates salonları ve üyeler için\nmodern randevu yönetim sistemi",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      height: 1.5,
+                      color: AppColors.text,
                     ),
                   ),
                 ],
               ),
 
+              // --------------------------------------------------
+              // 🔘 BUTONLAR
+              // --------------------------------------------------
               Column(
                 children: [
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CustomerAccount(),
+                          ),
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE8CFCF),
+                        backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        elevation: 0,
+                        elevation: 2,
                       ),
-                      onPressed: () {
-                        Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const CustomerAccount()));
-                      },
                       child: const Text(
                         "Müşteri Olarak Devam Et",
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -75,42 +99,52 @@ class WelcomeScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const BusinessAccount(),
+                          ),
+                        );
+                      },
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(
-                          color: Color(0xFFBFA9A9),
-                          width: 2,
+                          color: AppColors.primary,
+                          width: 1.6,
                         ),
+                        foregroundColor: AppColors.primaryDark,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 18),
                       ),
-                      onPressed: () {
-                        Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const BusinessAccount()));
-                      },
                       child: const Text(
                         "İşletme Hesabı Oluştur",
                         style: TextStyle(
-                          color: Color(0xFF6A4E4E),
                           fontSize: 16,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 22),
 
                   TextButton(
                     onPressed: () {
-                      Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const LoginScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LoginScreen(),
+                        ),
+                      );
                     },
                     child: const Text(
                       "Zaten hesabım var, giriş yap",
                       style: TextStyle(
-                        color: Color(0xFF6A4E4E),
                         fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primaryDark,
                         decoration: TextDecoration.underline,
                       ),
                     ),
