@@ -78,7 +78,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         elevation: 0,
         leading: const SizedBox.shrink(),
         actions: [
-          // 🔔 BİLDİRİM ZİLİ
+          // 🔔 Bildirim
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('notifications')
@@ -93,7 +93,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 icon: Stack(
                   children: [
                     const Icon(Icons.notifications,
-                        color: Color(0xFF7A4F4F)),
+                        color: Color(0xFFE48989)),
                     if (hasUnread)
                       const Positioned(
                         right: 0,
@@ -116,108 +116,152 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               );
             },
           ),
-
           IconButton(
-            icon: const Icon(Icons.logout, color: Color(0xFF7A4F4F)),
+            icon: const Icon(Icons.logout, color: Color(0xFFE48989)),
             onPressed: logout,
           ),
         ],
       ),
-      body: SafeArea(
-        child: loading
-            ? const Center(child: CircularProgressIndicator())
-            : Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Hoş geldin $name 👋",
-                      style: const TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF7A4F4F),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Vücut durumunu ve randevularını buradan takip edebilirsin",
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: Color(0xFF9E6B6B),
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    _BodyInfoCard(bodyInfo: bodyInfo!),
-                    const SizedBox(height: 18),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  const CustomerAppointmentsScreen(),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.event_note),
-                        label: const Text("Randevularım"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFB07C7C),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          elevation: 0,
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Hoş geldiniz",
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Color(0xFF9E6B6B),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  const BusinessListScreen(),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7A4F4F),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 18),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          "Reformer Salonlarını Keşfet",
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      const SizedBox(height: 4),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF9E6B6B),
                         ),
                       ),
-                    ),
-                    const Spacer(),
-                  ],
+                      const SizedBox(height: 6),
+                      const Text(
+                        "Randevularınızı ve vücut bilgilerinizi buradan yönetebilirsiniz",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFFB07C7C),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-      ),
+
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        _BodyInfoCard(bodyInfo: bodyInfo!),
+                        const SizedBox(height: 20),
+
+                        // ✅ RANDEVULARIM (AYNI)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const CustomerAppointmentsScreen(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.event_note),
+                            label: const Text("Randevularım"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFE48989),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        // 🌸 1. SEVİYE – MODERN KEŞFET CTA (GRADIENT)
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const BusinessListScreen(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 18, horizontal: 20),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFFE48989),
+                                  Color(0xFFB07C7C),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color(0xFFE48989)
+                                      .withOpacity(0.35),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.center,
+                              children: const [
+                                Icon(Icons.explore,
+                                    color: Colors.white, size: 22),
+                                SizedBox(width: 10),
+                                Text(
+                                  "Reformer Salonlarını Keşfet",
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
 
-// -----------------------------
+// --------------------------------------------------
 
 class _BodyInfoCard extends StatelessWidget {
   final Map<String, dynamic> bodyInfo;
@@ -231,13 +275,9 @@ class _BodyInfoCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 10),
         ],
       ),
       child: Column(
@@ -248,23 +288,23 @@ class _BodyInfoCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF7A4F4F),
+              color: Color(0xFFE48989),
             ),
           ),
           const SizedBox(height: 12),
-          _infoRow("Boy", "${bodyInfo['height']} cm"),
-          _infoRow("Kilo", "${bodyInfo['weight']} kg"),
-          _infoRow("Bel", "${bodyInfo['waist']} cm"),
-          _infoRow("Kalça", "${bodyInfo['hip']} cm"),
+          _info("Boy", "${bodyInfo['height']} cm"),
+          _info("Kilo", "${bodyInfo['weight']} kg"),
+          _info("Bel", "${bodyInfo['waist']} cm"),
+          _info("Kalça", "${bodyInfo['hip']} cm"),
           if (bodyInfo['fatPercent'] != null &&
               bodyInfo['fatPercent'].toString().isNotEmpty)
-            _infoRow("Yağ Oranı", "%${bodyInfo['fatPercent']}"),
+            _info("Yağ Oranı", "%${bodyInfo['fatPercent']}"),
         ],
       ),
     );
   }
 
-  Widget _infoRow(String label, String value) {
+  Widget _info(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(

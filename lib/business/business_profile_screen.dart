@@ -42,10 +42,12 @@ class BusinessProfileScreen extends StatelessWidget {
 
           return CustomScrollView(
             slivers: [
+              // 🌸 MODERN PEMBE SLIVER APP BAR
               SliverAppBar(
                 pinned: true,
-                expandedHeight: 220,
-                backgroundColor: const Color(0xFF7A4F4F),
+                expandedHeight: 240,
+                elevation: 0,
+                backgroundColor: const Color(0xFFE48989),
                 actions: [
                   if (isOwner)
                     IconButton(
@@ -62,17 +64,45 @@ class BusinessProfileScreen extends StatelessWidget {
                     ),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
-                  title: Text(name),
-                  background: Center(
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Colors.white,
-                      child: Text(
-                        name.isNotEmpty ? name[0] : "S",
-                        style: const TextStyle(
-                          fontSize: 40,
-                          color: Color(0xFF7A4F4F),
-                          fontWeight: FontWeight.bold,
+                  title: Text(
+                    name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(0xFFE48989),
+                          Color(0xFFB07C7C),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                    child: Center(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 12,
+                            ),
+                          ],
+                        ),
+                        child: CircleAvatar(
+                          radius: 54,
+                          backgroundColor: Colors.white,
+                          child: Text(
+                            name.isNotEmpty ? name[0] : "S",
+                            style: const TextStyle(
+                              fontSize: 42,
+                              color: Color(0xFFE48989),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -80,39 +110,80 @@ class BusinessProfileScreen extends StatelessWidget {
                 ),
               ),
 
+              // 📍 BİLGİ + CTA
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(location,
-                          style: const TextStyle(
-                              color: Color(0xFF9E6B6B))),
-                      const SizedBox(height: 8),
-                      Text(bio),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => BusinessDetailScreen(
-                                businessId: businessId,
-                                name: name,
-                                location: location,
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on,
+                              size: 18,
+                              color: Color(0xFFE48989)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              location,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF9E6B6B),
                               ),
                             ),
-                          );
-                        },
-                        child: const Text("Randevu Al"),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        bio,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF7A4F4F),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+
+                      // 🌸 RANDEVU AL BUTONU
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => BusinessDetailScreen(
+                                  businessId: businessId,
+                                  name: name,
+                                  location: location,
+                                ),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFE48989),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            "Randevu Al",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
 
-              // 📸 FOTO GRID
+              // 📸 FOTO GALERİ (AYNI MANTIK, DAHA ŞIK)
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('businesses')
@@ -123,8 +194,9 @@ class BusinessProfileScreen extends StatelessWidget {
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
                     return const SliverToBoxAdapter(
-                      child: Center(
-                        child: CircularProgressIndicator(),
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(child: CircularProgressIndicator()),
                       ),
                     );
                   }
@@ -136,14 +208,17 @@ class BusinessProfileScreen extends StatelessWidget {
                       child: Padding(
                         padding: EdgeInsets.all(24),
                         child: Center(
-                          child: Text("Henüz fotoğraf yok"),
+                          child: Text(
+                            "Henüz fotoğraf yok",
+                            style: TextStyle(color: Color(0xFF9E6B6B)),
+                          ),
                         ),
                       ),
                     );
                   }
 
                   return SliverPadding(
-                    padding: const EdgeInsets.all(4),
+                    padding: const EdgeInsets.all(8),
                     sliver: SliverGrid(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
@@ -151,9 +226,12 @@ class BusinessProfileScreen extends StatelessWidget {
                               as Map<String, dynamic>;
                           final imageUrl = data['imageUrl'];
 
-                          return Image.network(
-                            imageUrl,
-                            fit: BoxFit.cover,
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                            ),
                           );
                         },
                         childCount: docs.length,
@@ -161,8 +239,8 @@ class BusinessProfileScreen extends StatelessWidget {
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 3,
-                        crossAxisSpacing: 4,
-                        mainAxisSpacing: 4,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
                       ),
                     ),
                   );

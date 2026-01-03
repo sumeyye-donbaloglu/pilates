@@ -31,7 +31,7 @@ class WelcomeScreen extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
-                      Icons.fitness_center,
+                      Icons.self_improvement, // ✅ REFORMER / PILATES UYUMLU
                       size: 56,
                       color: AppColors.primary,
                     ),

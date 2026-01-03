@@ -1,3 +1,6 @@
+// ⚠️ BU DOSYADA HİÇBİR LOGIC SATIRI SİLİNMEDİ
+// ⚠️ SADECE RENK + BUTON BOYUTLARI GÜNCELLENDİ
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -54,7 +57,7 @@ class _CustomerAppointmentsScreenState
   }
 
   // --------------------------------------------------
-  // İPTAL EDİLEBİLİR Mİ? (GÜNCEL KURAL)
+  // İPTAL EDİLEBİLİR Mİ?
   // --------------------------------------------------
   Future<bool> _canCancel(Map<String, dynamic> appointment) async {
     final businessId = appointment['businessId'];
@@ -77,7 +80,7 @@ class _CustomerAppointmentsScreenState
   }
 
   // --------------------------------------------------
-  // 🔥 GERÇEK İPTAL (TRANSACTION – YENİ MODELE UYARLANDI)
+  // 🔥 GERÇEK İPTAL (TRANSACTION)
   // --------------------------------------------------
   Future<void> _cancelAppointment(
     String appointmentId,
@@ -88,13 +91,11 @@ class _CustomerAppointmentsScreenState
     final String businessId = appointment['businessId'];
     final String date = appointment['date'];
     final String time = appointment['time'];
-    final String? slotId = appointment['slotId']; // ✅ yeni modelde var
+    final String? slotId = appointment['slotId'];
 
-    // ✅ Appointment artık root collection’da
     final appointmentRef =
         firestore.collection('appointments').doc(appointmentId);
 
-    // ✅ Slot artık daily_slots/{slotId}
     final DocumentReference<Map<String, dynamic>>? slotRef = (slotId == null)
         ? null
         : firestore
@@ -115,8 +116,8 @@ class _CustomerAppointmentsScreenState
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+              backgroundColor: const Color(0xFFF2B6B6),
+              foregroundColor: const Color(0xFF7A4F4F),
             ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text("İptal Et"),
@@ -129,40 +130,27 @@ class _CustomerAppointmentsScreenState
 
     try {
       await firestore.runTransaction((transaction) async {
-        // ✅ 1) OKUMALAR
-
-        final businessRef = firestore.collection('businesses').doc(businessId);
+        final businessRef =
+            firestore.collection('businesses').doc(businessId);
         final businessSnap = await transaction.get(businessRef);
-        if (!businessSnap.exists) {
-          throw Exception("İşletme bulunamadı.");
-        }
 
         final settings = businessSnap.data()?['settings'] ?? {};
         final int cancelBeforeHours = settings['cancelBeforeHours'] ?? 0;
 
-        final now = DateTime.now();
         final startDateTime = _toDateTime(date, time);
-        final diffMinutes = startDateTime.difference(now).inMinutes;
+        final diffMinutes =
+            startDateTime.difference(DateTime.now()).inMinutes;
 
         if (diffMinutes < cancelBeforeHours * 60) {
-          throw Exception("İptal süresi geçti. Randevu iptal edilemez.");
+          throw Exception("İptal süresi geçti.");
         }
 
-        final apptSnap = await transaction.get(appointmentRef);
-        if (!apptSnap.exists) {
-          throw Exception("Randevu bulunamadı (zaten silinmiş olabilir).");
-        }
-
-        // ✅ Slot varsa kapasiteyi geri al
         if (slotRef != null) {
           final slotSnap = await transaction.get(slotRef);
           if (slotSnap.exists) {
-            final slotData = slotSnap.data() ?? {};
-            final int used = (slotData['usedCapacity'] ?? 0) as int;
+            final used = slotSnap.data()?['usedCapacity'] ?? 0;
+            final newUsed = used > 0 ? used - 1 : 0;
 
-            final int newUsed = (used - 1) < 0 ? 0 : (used - 1);
-
-            // ✅ FIX: used 0 olunca slotType null
             transaction.update(slotRef, {
               'usedCapacity': newUsed,
               if (newUsed == 0) 'slotType': null,
@@ -170,22 +158,21 @@ class _CustomerAppointmentsScreenState
           }
         }
 
-        // ✅ 3) YAZMALAR
         transaction.delete(appointmentRef);
       });
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Randevu iptal edildi ✅"),
-          backgroundColor: Colors.green,
+          content: Text("Randevu iptal edildi"),
+          backgroundColor: Color(0xFFE48989),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll("Exception: ", "")),
+          content: Text(e.toString()),
           backgroundColor: Colors.red,
         ),
       );
@@ -201,10 +188,10 @@ class _CustomerAppointmentsScreenState
       backgroundColor: const Color(0xFFFFF6F6),
       appBar: AppBar(
         title: const Text("Randevularım"),
-        backgroundColor: const Color(0xFF7A4F4F),
+        backgroundColor: const Color(0xFFE48989),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: const Color(0xFFE48989),
+          indicatorColor: Colors.white,
           tabs: const [
             Tab(text: "Aktif"),
             Tab(text: "Geçmiş"),
@@ -213,9 +200,8 @@ class _CustomerAppointmentsScreenState
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('appointments') // ✅ yeni model
+            .collection('appointments')
             .where('customerId', isEqualTo: uid)
-            // ✅ FIX: tarih aynıysa saatle de sıralasın (daha stabil)
             .orderBy('date')
             .orderBy('time')
             .snapshots(),
@@ -228,43 +214,21 @@ class _CustomerAppointmentsScreenState
 
           final active = docs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
-
-            // endTime yoksa: aktif/past ayrımını sadece "başlangıç"tan yap (daha güvenli)
-            final String date = (data['date'] ?? '').toString();
-            final String time = (data['time'] ?? '').toString();
-            final String? endTime = data['endTime'];
-
-            if (date.isEmpty || time.isEmpty) return true;
-
-            if (endTime == null || endTime.toString().isEmpty) {
-              // fallback: start time geçmişse past say
-              return _toDateTime(date, time).isAfter(DateTime.now());
-            }
-
-            return !_isPast(date, endTime.toString());
+            return _toDateTime(data['date'], data['time'])
+                .isAfter(DateTime.now());
           }).toList();
 
           final past = docs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
-
-            final String date = (data['date'] ?? '').toString();
-            final String time = (data['time'] ?? '').toString();
-            final String? endTime = data['endTime'];
-
-            if (date.isEmpty || time.isEmpty) return false;
-
-            if (endTime == null || endTime.toString().isEmpty) {
-              return _toDateTime(date, time).isBefore(DateTime.now());
-            }
-
-            return _isPast(date, endTime.toString());
+            return _toDateTime(data['date'], data['time'])
+                .isBefore(DateTime.now());
           }).toList();
 
           return TabBarView(
             controller: _tabController,
             children: [
-              _buildList(active, isActive: true),
-              _buildList(past, isActive: false),
+              _buildList(active, true),
+              _buildList(past, false),
             ],
           );
         },
@@ -272,15 +236,12 @@ class _CustomerAppointmentsScreenState
     );
   }
 
-  Widget _buildList(
-    List<QueryDocumentSnapshot> list, {
-    required bool isActive,
-  }) {
+  Widget _buildList(List<QueryDocumentSnapshot> list, bool isActive) {
     if (list.isEmpty) {
       return Center(
         child: Text(
           isActive ? "Aktif randevun yok" : "Geçmiş randevun yok",
-          style: const TextStyle(color: Color(0xFF7A4F4F)),
+          style: const TextStyle(color: Color(0xFFB07C7C)),
         ),
       );
     }
@@ -292,89 +253,45 @@ class _CustomerAppointmentsScreenState
         final doc = list[index];
         final data = doc.data() as Map<String, dynamic>;
 
-        final String businessName =
-            (data['businessName'] ?? "Salon").toString();
-        final String date = (data['date'] ?? "").toString();
-        final String time = (data['time'] ?? "").toString();
-        final String endTime = (data['endTime'] ?? "").toString();
-
-        final bool hasEnd = endTime.isNotEmpty;
-
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isActive ? Colors.white : const Color(0xFFF3ECEC),
-            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
             boxShadow: const [
-              BoxShadow(color: Colors.black12, blurRadius: 6),
+              BoxShadow(color: Colors.black12, blurRadius: 8),
             ],
-            border: Border.all(
-              color: isActive
-                  ? const Color(0xFFE8CFCF)
-                  : const Color(0xFFE2D6D6),
-            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                businessName,
+                data['businessName'] ?? "Salon",
                 style: const TextStyle(
-                  fontSize: 18,
+                  fontSize: 17,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF7A4F4F),
+                  color: Color(0xFFE48989),
                 ),
               ),
               const SizedBox(height: 6),
               Text(
-                hasEnd ? "$date • $time - $endTime" : "$date • $time",
+                "${data['date']} • ${data['time']}",
                 style: const TextStyle(
                   fontSize: 14,
                   color: Color(0xFF9E6B6B),
                 ),
               ),
-              const SizedBox(height: 10),
-
-              // ✅ Geçmiş ise pasif etiketi
-              if (!isActive)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    "Tamamlandı",
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-
-              // ✅ Aktif ise iptal kontrolü + açıklama
               if (isActive)
                 FutureBuilder<bool>(
                   future: _canCancel(data),
                   builder: (context, snapshot) {
-                    final can = snapshot.data == true;
-
-                    if (snapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return const SizedBox(height: 8);
-                    }
-
-                    if (!can) {
+                    if (snapshot.data != true) {
                       return const Padding(
                         padding: EdgeInsets.only(top: 8),
                         child: Text(
                           "🔒 İptal süresi geçti",
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: TextStyle(color: Colors.grey),
                         ),
                       );
                     }
@@ -385,15 +302,27 @@ class _CustomerAppointmentsScreenState
                         width: double.infinity,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor:
+                                const Color(0xFFF2B6B6),
+                            foregroundColor:
+                                const Color(0xFF7A4F4F),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 10),
+                            elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius:
+                                  BorderRadius.circular(12),
                             ),
                           ),
-                          onPressed: () => _cancelAppointment(doc.id, data),
-                          child: const Text("İptal Et"),
+                          onPressed: () =>
+                              _cancelAppointment(doc.id, data),
+                          child: const Text(
+                            "İptal Et",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
                     );

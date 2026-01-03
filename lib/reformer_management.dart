@@ -64,6 +64,32 @@ class _ReformerManagementScreenState extends State<ReformerManagementScreen> {
     });
   }
 
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'available':
+        return const Color(0xFF7BCFA1);
+      case 'maintenance':
+        return const Color(0xFFF4B266);
+      case 'unavailable':
+        return const Color(0xFFE57373);
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _statusText(String status) {
+    switch (status) {
+      case 'available':
+        return "Müsait";
+      case 'maintenance':
+        return "Bakımda";
+      case 'unavailable':
+        return "Kullanım Dışı";
+      default:
+        return status;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -71,9 +97,10 @@ class _ReformerManagementScreenState extends State<ReformerManagementScreen> {
       appBar: AppBar(
         title: const Text("Reformer Yönetimi"),
         backgroundColor: const Color(0xFFE48989),
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add_circle_outline),
             onPressed: addReformer,
           ),
         ],
@@ -93,12 +120,16 @@ class _ReformerManagementScreenState extends State<ReformerManagementScreen> {
             return const Center(
               child: Text(
                 "Henüz reformer eklenmemiş",
-                style: TextStyle(fontSize: 18),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF9E6B6B),
+                ),
               ),
             );
           }
 
           return ListView.builder(
+            padding: const EdgeInsets.all(16),
             itemCount: reformers.length,
             itemBuilder: (context, index) {
               final doc = reformers[index];
@@ -107,60 +138,81 @@ class _ReformerManagementScreenState extends State<ReformerManagementScreen> {
               final status = doc['status'];
 
               return Container(
-                margin:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                margin: const EdgeInsets.only(bottom: 14),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
                   boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 8,
-                    ),
+                    BoxShadow(color: Colors.black12, blurRadius: 8),
                   ],
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        DropdownButton<String>(
-                          value: status,
-                          underline: Container(),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'available',
-                              child: Text("Müsait"),
-                            ),
-                            DropdownMenuItem(
-                              value: 'maintenance',
-                              child: Text("Bakımda"),
-                            ),
-                            DropdownMenuItem(
-                              value: 'unavailable',
-                              child: Text("Kullanım Dışı"),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              updateStatus(id, value);
-                            }
-                          },
-                        ),
-                      ],
+                    // 🟢 STATUS DOT
+                    Container(
+                      width: 12,
+                      height: 12,
+                      margin: const EdgeInsets.only(right: 14),
+                      decoration: BoxDecoration(
+                        color: _statusColor(status),
+                        shape: BoxShape.circle,
+                      ),
                     ),
+
+                    // 📋 INFO
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF7A4F4F),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+
+                          DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: status,
+                              icon: const Icon(
+                                Icons.keyboard_arrow_down,
+                                color: Color(0xFFE48989),
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'available',
+                                  child: Text("Müsait"),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'maintenance',
+                                  child: Text("Bakımda"),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'unavailable',
+                                  child: Text("Kullanım Dışı"),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  updateStatus(id, value);
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ❌ DELETE
                     IconButton(
-                      icon:
-                          const Icon(Icons.delete, color: Colors.red),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Color(0xFFE57373),
+                      ),
                       onPressed: () => deleteReformer(id),
                     ),
                   ],

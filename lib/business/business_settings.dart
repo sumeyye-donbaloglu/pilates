@@ -22,7 +22,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
   int sessionDuration = 50;
   int breakDuration = 10;
 
-  /// 🔴 İPTAL KURALI (İŞLETME BELİRLER)
+  /// 🔴 İPTAL KURALI
   int cancelBeforeHours = 6;
 
   @override
@@ -49,11 +49,8 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
       weekendEnd = settings['weekend']?['end'] ?? weekendEnd;
       sessionDuration = settings['sessionDuration'] ?? sessionDuration;
       breakDuration = settings['breakDuration'] ?? breakDuration;
-
-      /// 🔴 OKU
       cancelBeforeHours =
           settings['cancelBeforeHours'] ?? cancelBeforeHours;
-
       loading = false;
     });
   }
@@ -67,8 +64,6 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
         "weekend": {"start": weekendStart, "end": weekendEnd},
         "sessionDuration": sessionDuration,
         "breakDuration": breakDuration,
-
-        /// 🔴 KAYDET
         "cancelBeforeHours": cancelBeforeHours,
       },
       "updatedAt": FieldValue.serverTimestamp(),
@@ -79,7 +74,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("Ayarlar kaydedildi"),
-        backgroundColor: Colors.green,
+        backgroundColor: Color(0xFFE48989),
       ),
     );
   }
@@ -92,6 +87,16 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
         hour: int.parse(parts[0]),
         minute: int.parse(parts[1]),
       ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFFE48989),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked == null) return null;
@@ -99,27 +104,62 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
     return "${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}";
   }
 
-  Widget buildTimeField(
-      String label, String value, Function(String) onChanged) {
+  Widget _timeTile(String label, String value, Function(String) onChanged) {
     return GestureDetector(
       onTap: () async {
         final newTime = await pickTime(value);
         if (newTime != null) onChanged(newTime);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFD9C6C6)),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE8CFCF)),
+          boxShadow: const [
+            BoxShadow(color: Colors.black12, blurRadius: 6),
+          ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(label,
+                style: const TextStyle(color: Color(0xFF9E6B6B))),
+            Text(
+              value,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF7A4F4F),
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFFE48989),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _dropdownDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFFE8CFCF)),
       ),
     );
   }
@@ -131,6 +171,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
       appBar: AppBar(
         title: const Text("Ayarlar"),
         backgroundColor: const Color(0xFFE48989),
+        elevation: 0,
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -139,31 +180,27 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Hafta İçi Çalışma Saatleri"),
-                  const SizedBox(height: 8),
-                  buildTimeField("Başlangıç", weekdayStart,
+                  _sectionTitle("Hafta İçi Çalışma Saatleri"),
+                  _timeTile("Başlangıç", weekdayStart,
                       (v) => setState(() => weekdayStart = v)),
-                  const SizedBox(height: 10),
-                  buildTimeField("Bitiş", weekdayEnd,
+                  const SizedBox(height: 12),
+                  _timeTile("Bitiş", weekdayEnd,
                       (v) => setState(() => weekdayEnd = v)),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 26),
 
-                  const Text("Hafta Sonu Çalışma Saatleri"),
-                  const SizedBox(height: 8),
-                  buildTimeField("Başlangıç", weekendStart,
+                  _sectionTitle("Hafta Sonu Çalışma Saatleri"),
+                  _timeTile("Başlangıç", weekendStart,
                       (v) => setState(() => weekendStart = v)),
-                  const SizedBox(height: 10),
-                  buildTimeField("Bitiş", weekendEnd,
+                  const SizedBox(height: 12),
+                  _timeTile("Bitiş", weekendEnd,
                       (v) => setState(() => weekendEnd = v)),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 26),
 
                   DropdownButtonFormField<int>(
                     value: sessionDuration,
-                    decoration: const InputDecoration(
-                      labelText: "Seans Süresi",
-                    ),
+                    decoration: _dropdownDecoration("Seans Süresi"),
                     items: const [
                       DropdownMenuItem(value: 30, child: Text("30 dk")),
                       DropdownMenuItem(value: 40, child: Text("40 dk")),
@@ -178,9 +215,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
 
                   DropdownButtonFormField<int>(
                     value: breakDuration,
-                    decoration: const InputDecoration(
-                      labelText: "Ara Süre",
-                    ),
+                    decoration: _dropdownDecoration("Ara Süre"),
                     items: const [
                       DropdownMenuItem(value: 5, child: Text("5 dk")),
                       DropdownMenuItem(value: 10, child: Text("10 dk")),
@@ -190,24 +225,13 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                         setState(() => breakDuration = v!),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
-                  /// 🔴 İPTAL SÜRESİ AYARI (BURASI SENİN DEDİĞİN YER)
-                  const Text(
-                    "Randevu İptal Kuralı",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
+                  _sectionTitle("Randevu İptal Kuralı"),
                   DropdownButtonFormField<int>(
                     value: cancelBeforeHours,
-                    decoration: const InputDecoration(
-                      labelText:
-                          "Müşteri en geç kaç saat önce iptal edebilir?",
-                    ),
+                    decoration: _dropdownDecoration(
+                        "Müşteri en geç kaç saat önce iptal edebilir?"),
                     items: const [
                       DropdownMenuItem(value: 1, child: Text("1 saat")),
                       DropdownMenuItem(value: 2, child: Text("2 saat")),
@@ -220,11 +244,41 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                         setState(() => cancelBeforeHours = v!),
                   ),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 36),
 
-                  ElevatedButton(
-                    onPressed: saveSettings,
-                    child: const Text("Kaydet"),
+                  GestureDetector(
+                    onTap: saveSettings,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFFE48989),
+                            Color(0xFFB07C7C),
+                          ],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFE48989)
+                                .withOpacity(0.35),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          "Kaydet",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -9,7 +9,7 @@ import 'business_settings.dart';
 import '../welcome.dart';
 import 'business_profile_screen.dart';
 import 'business_requests.dart';
-import '../customer/notifications.dart'; // 🔔 EKLENDİ
+import '../customer/notifications.dart';
 
 class BusinessHomeScreen extends StatefulWidget {
   const BusinessHomeScreen({super.key});
@@ -29,6 +29,9 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
     fetchBusinessInfo();
   }
 
+  // --------------------------------------------------
+  // BUSINESS INFO
+  // --------------------------------------------------
   Future<void> fetchBusinessInfo() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final doc = await FirestorePaths.businessDoc(uid).get();
@@ -42,6 +45,9 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
     });
   }
 
+  // --------------------------------------------------
+  // LOGOUT
+  // --------------------------------------------------
   Future<void> logout() async {
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
@@ -52,6 +58,9 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
     );
   }
 
+  // --------------------------------------------------
+  // UI
+  // --------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final businessId = FirebaseAuth.instance.currentUser!.uid;
@@ -61,8 +70,9 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
       appBar: AppBar(
         title: const Text("İşletme Paneli"),
         backgroundColor: const Color(0xFFE48989),
+        elevation: 0,
         actions: [
-          // 🔔 BİLDİRİM ZİLİ — SADECE EKLENDİ
+          // 🔔 Bildirim Zili
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('notifications')
@@ -79,8 +89,8 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
                     const Icon(Icons.notifications),
                     if (hasUnread)
                       const Positioned(
-                        right: 0,
-                        top: 0,
+                        right: 2,
+                        top: 2,
                         child: CircleAvatar(
                           radius: 5,
                           backgroundColor: Colors.red,
@@ -99,8 +109,6 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
               );
             },
           ),
-
-          // ❌ ÇIKARILMADI – AYNEN DURUYOR
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: logout,
@@ -109,107 +117,189 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                children: [
-                  _menuCard(
-                    "Profilim",
-                    Icons.person,
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => BusinessProfileScreen(
-                            businessId: businessId,
-                          ),
-                        ),
-                      );
-                    },
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --------------------------------------------------
+                // HEADER (Karşılama)
+                // --------------------------------------------------
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE48989),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(28),
+                      bottomRight: Radius.circular(28),
+                    ),
                   ),
-                  _menuCard(
-                    "Randevular",
-                    Icons.calendar_month,
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => RandevuManagementScreen(
-                            businessId: businessId,
-                          ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Merhaba,",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 16,
                         ),
-                      );
-                    },
-                  ),
-                  _menuCard(
-                    "Randevu Talepleri",
-                    Icons.mark_email_unread,
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const BusinessRequestsScreen(),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        businessName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
                         ),
-                      );
-                    },
-                  ),
-                  _menuCard(
-                    "Reformer Yönetimi",
-                    Icons.fitness_center,
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const ReformerManagementScreen(),
+                      ),
+                      if (location.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on,
+                              color: Colors.white70,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                location,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
-                      );
-                    },
+                      ],
+                    ],
                   ),
-                  _menuCard(
-                    "Ayarlar",
-                    Icons.settings,
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const BusinessSettingsScreen(),
+                ),
+
+                // --------------------------------------------------
+                // GRID MENU
+                // --------------------------------------------------
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: GridView.count(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      children: [
+                        _menuCard(
+                          "Profilim",
+                          Icons.person_outline,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => BusinessProfileScreen(
+                                  businessId: businessId,
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
+                        _menuCard(
+                          "Randevular",
+                          Icons.calendar_month_outlined,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => RandevuManagementScreen(
+                                  businessId: businessId,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        _menuCard(
+                          "Randevu Talepleri",
+                          Icons.mark_email_unread_outlined,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const BusinessRequestsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        _menuCard(
+                          "Reformer Yönetimi",
+                          Icons.self_improvement,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const ReformerManagementScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        _menuCard(
+                          "Ayarlar",
+                          Icons.settings_outlined,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const BusinessSettingsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+
+                        // 🔒 İLERİDE EKLENECEK
+                        // _menuCard("Üyelerim", Icons.group_outlined, () {}),
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
     );
   }
 
+  // --------------------------------------------------
+  // MENU CARD
+  // --------------------------------------------------
   Widget _menuCard(String title, IconData icon, VoidCallback onTap) {
-    return GestureDetector(
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: const [
-            BoxShadow(color: Colors.black12, blurRadius: 8),
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
           ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: const Color(0xFFE48989)),
-            const SizedBox(height: 12),
+            Icon(icon, size: 42, color: const Color(0xFFE48989)),
+            const SizedBox(height: 14),
             Text(
               title,
+              textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
+                color: Color(0xFF6A4E4E),
               ),
             ),
           ],

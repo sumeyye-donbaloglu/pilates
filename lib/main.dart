@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/date_symbol_data_local.dart'; // ✅ EKLENDİ
 
 import 'firebase_options.dart';
 import 'firestore_paths.dart';
@@ -14,9 +15,14 @@ import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // ✅ TÜRKÇE TARİH FORMATLARI (EEEE, d MMMM y vs.)
+  await initializeDateFormatting('tr_TR', null);
+
   runApp(const MyApp());
 }
 
