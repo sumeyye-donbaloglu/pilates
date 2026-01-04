@@ -2,15 +2,33 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import 'chat_detail_screen.dart'; 
+import 'chat_detail_screen.dart';
 
 class ChatListScreen extends StatelessWidget {
-  final bool isBusiness; // business mi customer mı?
+  final bool isBusiness;
 
   const ChatListScreen({
     super.key,
     required this.isBusiness,
   });
+
+  Future<String> _getOtherUserName(String otherUserId) async {
+    if (isBusiness) {
+      // business → customer name
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(otherUserId)
+          .get();
+      return doc.data()?['name'] ?? 'Müşteri';
+    } else {
+      // customer → business name
+      final doc = await FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(otherUserId)
+          .get();
+      return doc.data()?['businessInfo']?['name'] ?? 'Salon';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,8 +44,10 @@ class ChatListScreen extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('chats')
-            .where(isBusiness ? 'businessId' : 'customerId', isEqualTo: uid)
-            .orderBy('lastMessageAt', descending: true)
+            .where(
+              isBusiness ? 'businessId' : 'customerId',
+              isEqualTo: uid,
+            )
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -54,59 +74,62 @@ class ChatListScreen extends StatelessWidget {
 
               final chatId = chatDoc.id;
 
-              final otherUserId =
-                  isBusiness ? data['customerId'] : data['businessId'];
+              final otherUserId = isBusiness
+                  ? data['customerId']
+                  : data['businessId'];
 
               final unreadCount = isBusiness
-                  ? data['unreadForBusiness']
-                  : data['unreadForCustomer'];
+                  ? (data['unreadForBusiness'] ?? 0)
+                  : (data['unreadForCustomer'] ?? 0);
 
-              return ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFE48989),
-                  child: Icon(Icons.person, color: Colors.white),
-                ),
-                title: Text(
-                  otherUserId, // ileride isimle değişecek
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  data['lastMessage'] ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (unreadCount != null && unreadCount > 0)
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          unreadCount.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
+              return FutureBuilder<String>(
+                future: _getOtherUserName(otherUserId),
+                builder: (context, nameSnapshot) {
+                  final displayName =
+                      nameSnapshot.data ?? 'Yükleniyor...';
+
+                  return ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFFE48989),
+                      child: Icon(Icons.person, color: Colors.white),
+                    ),
+                    title: Text(
+                      displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      data['lastMessage'] ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: unreadCount > 0
+                        ? Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              unreadCount.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          )
+                        : null,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChatDetailScreen(
+                            chatId: chatId,
+                            otherUserName: displayName,
                           ),
                         ),
-                      ),
-                  ],
-                ),
-
-                // ✅ CHAT DETAIL AÇILIYOR
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChatDetailScreen(
-                        chatId: chatId,
-                        otherUserName: otherUserId,
-                      ),
-                    ),
+                      );
+                    },
                   );
                 },
               );

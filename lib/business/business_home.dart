@@ -10,6 +10,7 @@ import '../welcome.dart';
 import 'business_profile_screen.dart';
 import 'business_requests.dart';
 import '../customer/notifications.dart';
+import '../screen/chat/chat_list_screen.dart'; // ✅ MESAJLAR
 
 class BusinessHomeScreen extends StatefulWidget {
   const BusinessHomeScreen({super.key});
@@ -121,7 +122,7 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // --------------------------------------------------
-                // HEADER (Karşılama)
+                // HEADER
                 // --------------------------------------------------
                 Container(
                   width: double.infinity,
@@ -204,6 +205,23 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
                             );
                           },
                         ),
+
+                        // 💬 MESAJLAR
+                        _menuCard(
+                          "Mesajlar",
+                          Icons.chat_bubble_outline,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ChatListScreen(
+                                  isBusiness: true,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+
                         _menuCard(
                           "Randevular",
                           Icons.calendar_month_outlined,
@@ -218,6 +236,7 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
                             );
                           },
                         ),
+
                         _menuCard(
                           "Randevu Talepleri",
                           Icons.mark_email_unread_outlined,
@@ -231,6 +250,21 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
                             );
                           },
                         ),
+
+                        // 👥 ÜYELERİM
+                        _menuCard(
+                          "Üyelerim",
+                          Icons.group_outlined,
+                          () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content:
+                                    Text("Üyelerim ekranı yakında"),
+                              ),
+                            );
+                          },
+                        ),
+
                         _menuCard(
                           "Reformer Yönetimi",
                           Icons.self_improvement,
@@ -244,6 +278,7 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
                             );
                           },
                         ),
+
                         _menuCard(
                           "Ayarlar",
                           Icons.settings_outlined,
@@ -257,9 +292,6 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
                             );
                           },
                         ),
-
-                        // 🔒 İLERİDE EKLENECEK
-                        // _menuCard("Üyelerim", Icons.group_outlined, () {}),
                       ],
                     ),
                   ),

@@ -9,40 +9,55 @@ class BusinessPostService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _picker = ImagePicker();
 
-  /// true = foto yüklendi
-  /// false = iptal edildi
+  /// true  -> foto yüklendi
+  /// false -> iptal / hata
   Future<bool> pickAndUploadPost(String businessId) async {
-    final XFile? pickedFile =
-        await _picker.pickImage(source: ImageSource.gallery);
+    try {
+      // 1️⃣ Foto seç
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 75, // 🔹 boyutu düşürür (önemli)
+      );
 
-    if (pickedFile == null) {
-      return false; // 👈 İPTAL
+      if (pickedFile == null) {
+        return false; // kullanıcı iptal etti
+      }
+
+      final File imageFile = File(pickedFile.path);
+
+      // 2️⃣ Dosya adı
+      final String fileName =
+          DateTime.now().millisecondsSinceEpoch.toString();
+
+      // 3️⃣ Storage reference
+      final Reference ref = _storage
+          .ref()
+          .child('business_posts')
+          .child(businessId)
+          .child('$fileName.jpg');
+
+      // 4️⃣ UPLOAD (ÖNCE BU)
+      await ref.putFile(imageFile);
+
+      // 5️⃣ SONRA download URL
+      final String downloadUrl = await ref.getDownloadURL();
+
+      // 6️⃣ Firestore kaydı
+      await _firestore
+          .collection('businesses')
+          .doc(businessId)
+          .collection('posts')
+          .add({
+        'imageUrl': downloadUrl,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      return true;
+    } catch (e, s) {
+      // 🔴 HATA YAKALA (debug için çok önemli)
+      print('BusinessPostService ERROR: $e');
+      print(s);
+      return false;
     }
-
-    final File imageFile = File(pickedFile.path);
-
-    final String fileName =
-        DateTime.now().millisecondsSinceEpoch.toString();
-
-    final ref = _storage
-        .ref()
-        .child('business_posts')
-        .child(businessId)
-        .child('$fileName.jpg');
-
-    await ref.putFile(imageFile);
-
-    final String downloadUrl = await ref.getDownloadURL();
-
-    await _firestore
-        .collection('businesses')
-        .doc(businessId)
-        .collection('posts')
-        .add({
-      'imageUrl': downloadUrl,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    return true;
   }
 }
