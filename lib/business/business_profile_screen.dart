@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../firestore_paths.dart';
 import '../customer/business_detail.dart';
 import 'business_add_post.dart';
+import '../screen/chat/chat_detail_screen.dart'; // ✅ CHAT DETAIL
+import '../screen/chat/chat_list_screen.dart'; // (opsiyonel ama sorun olmaz)
 
 class BusinessProfileScreen extends StatelessWidget {
   final String businessId;
@@ -13,6 +15,63 @@ class BusinessProfileScreen extends StatelessWidget {
     super.key,
     required this.businessId,
   });
+
+  Future<void> _openOrCreateChat(
+    BuildContext context, {
+    required String businessId,
+    required String businessName,
+  }) async {
+    final currentUser = FirebaseAuth.instance.currentUser!;
+    final customerId = currentUser.uid;
+
+    final chatsRef = FirebaseFirestore.instance.collection('chats');
+
+    // 🔍 Daha önce chat var mı?
+    final existingChat = await chatsRef
+        .where('businessId', isEqualTo: businessId)
+        .where('customerId', isEqualTo: customerId)
+        .limit(1)
+        .get();
+
+    late String chatId;
+
+    if (existingChat.docs.isNotEmpty) {
+      // ✅ VAR → mevcut chat
+      chatId = existingChat.docs.first.id;
+    } else {
+      // ❌ YOK → yeni chat oluştur
+      final chatDoc = await chatsRef.add({
+        'businessId': businessId,
+        'customerId': customerId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastMessage': '💬 Sohbet başlatıldı',
+        'lastMessageAt': FieldValue.serverTimestamp(),
+        'unreadForBusiness': 1,
+        'unreadForCustomer': 0,
+      });
+
+      chatId = chatDoc.id;
+
+      // 🟡 SYSTEM MESSAGE
+      await chatsRef.doc(chatId).collection('messages').add({
+        'senderId': 'system',
+        'text': '💬 Müşteri sohbet başlattı',
+        'type': 'system',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    // 👉 CHAT DETAIL’E GİT
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatDetailScreen(
+          chatId: chatId,
+          otherUserName: businessName,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +101,6 @@ class BusinessProfileScreen extends StatelessWidget {
 
           return CustomScrollView(
             slivers: [
-              // 🌸 MODERN PEMBE SLIVER APP BAR
               SliverAppBar(
                 pinned: true,
                 expandedHeight: 240,
@@ -64,12 +122,7 @@ class BusinessProfileScreen extends StatelessWidget {
                     ),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
-                  title: Text(
-                    name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  title: Text(name),
                   background: Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
@@ -81,70 +134,22 @@ class BusinessProfileScreen extends StatelessWidget {
                         end: Alignment.bottomCenter,
                       ),
                     ),
-                    child: Center(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 12,
-                            ),
-                          ],
-                        ),
-                        child: CircleAvatar(
-                          radius: 54,
-                          backgroundColor: Colors.white,
-                          child: Text(
-                            name.isNotEmpty ? name[0] : "S",
-                            style: const TextStyle(
-                              fontSize: 42,
-                              color: Color(0xFFE48989),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                   ),
                 ),
               ),
 
-              // 📍 BİLGİ + CTA
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on,
-                              size: 18,
-                              color: Color(0xFFE48989)),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              location,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF9E6B6B),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        bio,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF7A4F4F),
-                        ),
-                      ),
+                      Text(location),
+                      const SizedBox(height: 8),
+                      Text(bio),
                       const SizedBox(height: 18),
 
-                      // 🌸 RANDEVU AL BUTONU
+                      // 🌸 RANDEVU AL
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -162,28 +167,49 @@ class BusinessProfileScreen extends StatelessWidget {
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFE48989),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            elevation: 0,
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 16),
                           ),
-                          child: const Text(
-                            "Randevu Al",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                          child: const Text("Randevu Al"),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // 💬 MESAJ GÖNDER (MODEL 2)
+                      if (!isOwner)
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.chat_bubble_outline),
+                            label: const Text("Mesaj Gönder"),
+                            onPressed: () {
+                              _openOrCreateChat(
+                                context,
+                                businessId: businessId,
+                                businessName: name,
+                              );
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor:
+                                  const Color(0xFFE48989),
+                              side: const BorderSide(
+                                  color: Color(0xFFE48989)),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(18),
+                              ),
                             ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
               ),
 
-              // 📸 FOTO GALERİ (AYNI MANTIK, DAHA ŞIK)
+              // 📸 FOTO GALERİ (AYNI)
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('businesses')
@@ -196,7 +222,8 @@ class BusinessProfileScreen extends StatelessWidget {
                     return const SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.all(24),
-                        child: Center(child: CircularProgressIndicator()),
+                        child: Center(
+                            child: CircularProgressIndicator()),
                       ),
                     );
                   }
@@ -208,10 +235,7 @@ class BusinessProfileScreen extends StatelessWidget {
                       child: Padding(
                         padding: EdgeInsets.all(24),
                         child: Center(
-                          child: Text(
-                            "Henüz fotoğraf yok",
-                            style: TextStyle(color: Color(0xFF9E6B6B)),
-                          ),
+                          child: Text("Henüz fotoğraf yok"),
                         ),
                       ),
                     );
@@ -224,14 +248,9 @@ class BusinessProfileScreen extends StatelessWidget {
                         (context, index) {
                           final data = docs[index].data()
                               as Map<String, dynamic>;
-                          final imageUrl = data['imageUrl'];
-
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: Image.network(
-                              imageUrl,
-                              fit: BoxFit.cover,
-                            ),
+                          return Image.network(
+                            data['imageUrl'],
+                            fit: BoxFit.cover,
                           );
                         },
                         childCount: docs.length,

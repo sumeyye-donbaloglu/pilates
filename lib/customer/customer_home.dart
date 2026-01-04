@@ -7,6 +7,8 @@ import 'business_list.dart';
 import 'customer_appointments.dart';
 import '../welcome.dart';
 import 'notifications.dart';
+import 'package:pilates/screen/chat/chat_list_screen.dart';
+ 
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -150,7 +152,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        "Randevularınızı ve vücut bilgilerinizi buradan yönetebilirsiniz",
+                        "Randevularınızı ve mesajlarınızı buradan yönetebilirsiniz",
                         style: TextStyle(
                           fontSize: 14,
                           color: Color(0xFFB07C7C),
@@ -168,7 +170,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         _BodyInfoCard(bodyInfo: bodyInfo!),
                         const SizedBox(height: 20),
 
-                        // ✅ RANDEVULARIM (AYNI)
+                        // ✅ RANDEVULARIM
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
@@ -196,9 +198,43 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           ),
                         ),
 
+                        const SizedBox(height: 14),
+
+                        // 💬 MESAJLAR (DM) – YENİ EKLENEN
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ChatListScreen(
+                                    isBusiness: false,
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.chat_bubble_outline),
+                            label: const Text("Mesajlar"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: const Color(0xFFE48989),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: const BorderSide(
+                                  color: Color(0xFFE48989),
+                                ),
+                              ),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
+
                         const SizedBox(height: 18),
 
-                        // 🌸 1. SEVİYE – MODERN KEŞFET CTA (GRADIENT)
+                        // 🌸 REFORMER KEŞFET
                         GestureDetector(
                           onTap: () {
                             Navigator.push(
