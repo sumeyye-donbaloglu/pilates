@@ -1,13 +1,42 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 
 class BusinessPostService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _picker = ImagePicker();
+
+  // Cloudinary ayarları
+  static const String _cloudName = "da7gq8fdo";
+  static const String _uploadPreset = "pilates_unsigned";
+
+  Future<String?> _uploadToCloudinary(File imageFile) async {
+    final uri = Uri.parse(
+      "https://api.cloudinary.com/v1_1/$_cloudName/image/upload",
+    );
+
+    final request = http.MultipartRequest("POST", uri);
+    request.fields["upload_preset"] = _uploadPreset;
+
+    request.files.add(
+      await http.MultipartFile.fromPath("file", imageFile.path),
+    );
+
+    final streamedResponse = await request.send();
+    final body = await streamedResponse.stream.bytesToString();
+
+    if (streamedResponse.statusCode != 200) {
+      print("Cloudinary upload failed: ${streamedResponse.statusCode}");
+      print("Cloudinary response: $body");
+      return null;
+    }
+
+    final json = jsonDecode(body);
+    return json["secure_url"] as String?;
+  }
 
   /// true  -> foto yüklendi
   /// false -> iptal / hata
@@ -16,48 +45,87 @@ class BusinessPostService {
       // 1️⃣ Foto seç
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 75, // 🔹 boyutu düşürür (önemli)
+        imageQuality: 75,
       );
 
-      if (pickedFile == null) {
-        return false; // kullanıcı iptal etti
-      }
+      if (pickedFile == null) return false;
 
       final File imageFile = File(pickedFile.path);
 
-      // 2️⃣ Dosya adı
-      final String fileName =
-          DateTime.now().millisecondsSinceEpoch.toString();
+      // 2️⃣ Cloudinary'ye yükle ve URL al
+      final String? downloadUrl = await _uploadToCloudinary(imageFile);
+      if (downloadUrl == null) return false;
 
-      // 3️⃣ Storage reference
-      final Reference ref = _storage
-          .ref()
-          .child('business_posts')
-          .child(businessId)
-          .child('$fileName.jpg');
-
-      // 4️⃣ UPLOAD (ÖNCE BU)
-      await ref.putFile(imageFile);
-
-      // 5️⃣ SONRA download URL
-      final String downloadUrl = await ref.getDownloadURL();
-
-      // 6️⃣ Firestore kaydı
-      await _firestore
+      // 3️⃣ BUSINESS İSMİNİ ÇEK
+      final businessDoc = await _firestore
           .collection('businesses')
           .doc(businessId)
-          .collection('posts')
-          .add({
+          .get();
+
+      final businessData =
+          businessDoc.data() as Map<String, dynamic>?;
+
+      final businessInfo =
+          businessData?['businessInfo']
+              as Map<String, dynamic>?;
+
+      final businessName =
+          businessInfo?['name'] ?? 'İşletme';
+
+      // 4️⃣ Firestore post kaydı
+      await _firestore.collection('posts').add({
+        'businessId': businessId,
+        'businessName': businessName,   // ✅ EKLENDİ
         'imageUrl': downloadUrl,
         'createdAt': FieldValue.serverTimestamp(),
+        'createdAtClient': DateTime.now().millisecondsSinceEpoch,
+        'likeCount': 0,
+        'commentCount': 0,
       });
 
       return true;
     } catch (e, s) {
-      // 🔴 HATA YAKALA (debug için çok önemli)
       print('BusinessPostService ERROR: $e');
       print(s);
       return false;
     }
+  }
+
+  // ✅ LIKE DURUMU
+  Stream<bool> likeStatusStream({
+    required String postId,
+    required String userId,
+  }) {
+    return _firestore
+        .collection('posts')
+        .doc(postId)
+        .collection('likes')
+        .doc(userId)
+        .snapshots()
+        .map((doc) => doc.exists);
+  }
+
+  // ✅ LIKE/UNLIKE
+  Future<void> toggleLike({
+    required String postId,
+    required String userId,
+  }) async {
+    final postRef = _firestore.collection('posts').doc(postId);
+    final likeRef = postRef.collection('likes').doc(userId);
+
+    await _firestore.runTransaction((tx) async {
+      final likeSnap = await tx.get(likeRef);
+
+      if (likeSnap.exists) {
+        tx.delete(likeRef);
+        tx.update(postRef, {'likeCount': FieldValue.increment(-1)});
+      } else {
+        tx.set(likeRef, {
+          'userId': userId,
+          'likedAt': FieldValue.serverTimestamp(),
+        });
+        tx.update(postRef, {'likeCount': FieldValue.increment(1)});
+      }
+    });
   }
 }

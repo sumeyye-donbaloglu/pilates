@@ -8,6 +8,8 @@ import 'customer_appointments.dart';
 import '../welcome.dart';
 import 'notifications.dart';
 import 'package:pilates/screen/chat/chat_list_screen.dart';
+import 'customer_explore.dart';
+import 'customer_discover.dart';
  
 
 class CustomerHomeScreen extends StatefulWidget {
@@ -80,7 +82,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         elevation: 0,
         leading: const SizedBox.shrink(),
         actions: [
-          // 🔔 Bildirim
+          
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('notifications')
@@ -241,7 +243,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (_) =>
-                                    const BusinessListScreen(),
+                                    const CustomerDiscoverScreen(),
                               ),
                             );
                           },

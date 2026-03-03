@@ -39,6 +39,7 @@ class _BusinessAccountState extends State<BusinessAccount> {
       // 2️⃣ USERS → kimlik & rol
       await FirestorePaths.userDoc(uid).set({
         "uid": uid,
+        "name": _businessName.text.trim(), // ✅ EKLENDİ
         "email": _email.text.trim(),
         "role": "business",
         "createdAt": FieldValue.serverTimestamp(),
@@ -65,7 +66,7 @@ class _BusinessAccountState extends State<BusinessAccount> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("İşletme hesabı oluşturuldu 🎉"),
+          content: Text("İşletme hesabı oluşturuldu"),
         ),
       );
 
@@ -116,7 +117,8 @@ class _BusinessAccountState extends State<BusinessAccount> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -145,27 +147,31 @@ class _BusinessAccountState extends State<BusinessAccount> {
 
               TextField(
                 controller: _businessName,
-                decoration: _input("İşletme Adı", Icons.storefront_outlined),
+                decoration: _input(
+                    "İşletme Adı", Icons.storefront_outlined),
               ),
               const SizedBox(height: 16),
 
               TextField(
                 controller: _location,
-                decoration: _input("Konum", Icons.location_on_outlined),
+                decoration:
+                    _input("Konum", Icons.location_on_outlined),
               ),
               const SizedBox(height: 16),
 
               TextField(
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
-                decoration: _input("E-posta", Icons.email_outlined),
+                decoration:
+                    _input("E-posta", Icons.email_outlined),
               ),
               const SizedBox(height: 16),
 
               TextField(
                 controller: _password,
                 obscureText: true,
-                decoration: _input("Şifre", Icons.lock_outline),
+                decoration:
+                    _input("Şifre", Icons.lock_outline),
               ),
 
               const SizedBox(height: 32),
@@ -173,7 +179,8 @@ class _BusinessAccountState extends State<BusinessAccount> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _loading ? null : registerBusiness,
+                  onPressed:
+                      _loading ? null : registerBusiness,
                   child: _loading
                       ? const SizedBox(
                           height: 22,
@@ -183,7 +190,8 @@ class _BusinessAccountState extends State<BusinessAccount> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text("İşletme Hesabını Oluştur"),
+                      : const Text(
+                          "İşletme Hesabını Oluştur"),
                 ),
               ),
 
@@ -194,10 +202,14 @@ class _BusinessAccountState extends State<BusinessAccount> {
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.primary),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: const BorderSide(
+                        color: AppColors.primary),
+                    padding:
+                        const EdgeInsets.symmetric(
+                            vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius:
+                          BorderRadius.circular(16),
                     ),
                   ),
                   child: const Text(

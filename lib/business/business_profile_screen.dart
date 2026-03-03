@@ -5,8 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../firestore_paths.dart';
 import '../customer/business_detail.dart';
 import 'business_add_post.dart';
-import '../screen/chat/chat_detail_screen.dart'; // ✅ CHAT DETAIL
-import '../screen/chat/chat_list_screen.dart'; // (opsiyonel ama sorun olmaz)
+import '../screen/chat/chat_detail_screen.dart'; 
+import 'post_detail_screen.dart';
+
 
 class BusinessProfileScreen extends StatelessWidget {
   final String businessId;
@@ -209,62 +210,74 @@ class BusinessProfileScreen extends StatelessWidget {
                 ),
               ),
 
-              // 📸 FOTO GALERİ (AYNI)
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('businesses')
-                    .doc(businessId)
-                    .collection('posts')
-                    .orderBy('createdAt', descending: true)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Center(
-                            child: CircularProgressIndicator()),
-                      ),
-                    );
-                  }
+              // 📸 FOTO GALERİ
+StreamBuilder<QuerySnapshot>(
+  stream: FirebaseFirestore.instance
+      .collection('posts')
+      .where('businessId', isEqualTo: businessId)
+      .orderBy('createdAtClient', descending: true)
+      .snapshots(),
+  builder: (context, snapshot) {
+    if (!snapshot.hasData) {
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
 
-                  final docs = snapshot.data!.docs;
+    final docs = snapshot.data!.docs;
 
-                  if (docs.isEmpty) {
-                    return const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Center(
-                          child: Text("Henüz fotoğraf yok"),
-                        ),
-                      ),
-                    );
-                  }
+    if (docs.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(
+            child: Text("Henüz fotoğraf yok"),
+          ),
+        ),
+      );
+    }
 
-                  return SliverPadding(
-                    padding: const EdgeInsets.all(8),
-                    sliver: SliverGrid(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final data = docs[index].data()
-                              as Map<String, dynamic>;
-                          return Image.network(
-                            data['imageUrl'],
-                            fit: BoxFit.cover,
-                          );
-                        },
-                        childCount: docs.length,
-                      ),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                      ),
+    return SliverPadding(
+      padding: const EdgeInsets.all(8),
+      sliver: SliverGrid(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final data =
+                docs[index].data() as Map<String, dynamic>;
+
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PostDetailScreen(
+                      postId: docs[index].id,
+                      postData: data,
                     ),
-                  );
-                },
+                  ),
+                );
+              },
+              child: Image.network(
+                data['imageUrl'],
+                fit: BoxFit.cover,
               ),
+            );
+          },
+          childCount: docs.length,
+        ),
+        gridDelegate:
+            const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+        ),
+      ),
+    );
+  },
+),
             ],
           );
         },

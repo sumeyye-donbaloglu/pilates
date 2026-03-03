@@ -10,7 +10,7 @@ import '../welcome.dart';
 import 'business_profile_screen.dart';
 import 'business_requests.dart';
 import '../customer/notifications.dart';
-import '../screen/chat/chat_list_screen.dart'; // ✅ MESAJLAR
+import '../screen/chat/chat_list_screen.dart';
 
 class BusinessHomeScreen extends StatefulWidget {
   const BusinessHomeScreen({super.key});
@@ -24,21 +24,42 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
   String location = "";
   bool loading = true;
 
+  User? currentUser;
+
   @override
   void initState() {
     super.initState();
-    fetchBusinessInfo();
+    currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+          (_) => false,
+        );
+      });
+    } else {
+      fetchBusinessInfo();
+    }
   }
 
   // --------------------------------------------------
   // BUSINESS INFO
   // --------------------------------------------------
   Future<void> fetchBusinessInfo() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final doc = await FirestorePaths.businessDoc(uid).get();
-    if (!doc.exists) return;
+    if (currentUser == null) return;
 
-    final info = doc.data()!['businessInfo'] ?? {};
+    final uid = currentUser!.uid;
+    final doc = await FirestorePaths.businessDoc(uid).get();
+    if (!doc.exists) {
+      setState(() => loading = false);
+      return;
+    }
+
+    final info = doc.data()?['businessInfo'] ?? {};
+
+    if (!mounted) return;
     setState(() {
       businessName = info['name'] ?? "Salon";
       location = info['location'] ?? "";
@@ -64,7 +85,13 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
   // --------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    final businessId = FirebaseAuth.instance.currentUser!.uid;
+    if (currentUser == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final businessId = currentUser!.uid;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF6F6),
@@ -73,7 +100,7 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
         backgroundColor: const Color(0xFFE48989),
         elevation: 0,
         actions: [
-          // 🔔 Bildirim Zili
+          // 🔔 BİLDİRİMLER
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('notifications')
@@ -191,107 +218,79 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
                       children: [
-                        _menuCard(
-                          "Profilim",
-                          Icons.person_outline,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => BusinessProfileScreen(
-                                  businessId: businessId,
-                                ),
+                        _menuCard("Profilim", Icons.person_outline, () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BusinessProfileScreen(
+                                businessId: businessId,
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        }),
 
-                        // 💬 MESAJLAR
-                        _menuCard(
-                          "Mesajlar",
-                          Icons.chat_bubble_outline,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const ChatListScreen(
-                                  isBusiness: true,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                        _menuCard("Mesajlar", Icons.chat_bubble_outline, () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const ChatListScreen(isBusiness: true),
+                            ),
+                          );
+                        }),
 
                         _menuCard(
-                          "Randevular",
-                          Icons.calendar_month_outlined,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => RandevuManagementScreen(
-                                  businessId: businessId,
-                                ),
+                            "Randevular", Icons.calendar_month_outlined, () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RandevuManagementScreen(
+                                businessId: businessId,
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        }),
+
+                        _menuCard("Randevu Talepleri",
+                            Icons.mark_email_unread_outlined, () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const BusinessRequestsScreen(),
+                            ),
+                          );
+                        }),
+
+                        _menuCard("Üyelerim", Icons.group_outlined, () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content:
+                                  Text("Üyelerim ekranı yakında"),
+                            ),
+                          );
+                        }),
 
                         _menuCard(
-                          "Randevu Talepleri",
-                          Icons.mark_email_unread_outlined,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    const BusinessRequestsScreen(),
-                              ),
-                            );
-                          },
-                        ),
+                            "Reformer Yönetimi", Icons.self_improvement, () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const ReformerManagementScreen(),
+                            ),
+                          );
+                        }),
 
-                        // 👥 ÜYELERİM
-                        _menuCard(
-                          "Üyelerim",
-                          Icons.group_outlined,
-                          () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content:
-                                    Text("Üyelerim ekranı yakında"),
-                              ),
-                            );
-                          },
-                        ),
-
-                        _menuCard(
-                          "Reformer Yönetimi",
-                          Icons.self_improvement,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    const ReformerManagementScreen(),
-                              ),
-                            );
-                          },
-                        ),
-
-                        _menuCard(
-                          "Ayarlar",
-                          Icons.settings_outlined,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    const BusinessSettingsScreen(),
-                              ),
-                            );
-                          },
-                        ),
+                        _menuCard("Ayarlar", Icons.settings_outlined, () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const BusinessSettingsScreen(),
+                            ),
+                          );
+                        }),
                       ],
                     ),
                   ),
