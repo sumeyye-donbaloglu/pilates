@@ -77,6 +77,9 @@ class _BodyInfoOnboardingScreenState extends State<BodyInfoOnboardingScreen> {
                   final uid = user.uid;
 
                   try {
+                    final now = Timestamp.now();
+
+                    // Ana kullanıcı dokümanını güncelle
                     await FirebaseFirestore.instance
                         .collection("users")
                         .doc(uid)
@@ -88,8 +91,22 @@ class _BodyInfoOnboardingScreenState extends State<BodyInfoOnboardingScreen> {
                         "waist": waistController.text.trim(),
                         "hip": hipController.text.trim(),
                         "fatPercent": fatController.text.trim(),
-                        "createdAt": Timestamp.now(),
+                        "createdAt": now,
                       }
+                    });
+
+                    // İlk ölçümü subcollection'a da kaydet (grafik için)
+                    await FirebaseFirestore.instance
+                        .collection("users")
+                        .doc(uid)
+                        .collection("bodyMeasurements")
+                        .add({
+                      "weight": double.tryParse(weightController.text.trim()) ?? 0,
+                      "waist":  double.tryParse(waistController.text.trim()) ?? 0,
+                      "hip":    double.tryParse(hipController.text.trim()) ?? 0,
+                      "fatPercent": double.tryParse(fatController.text.trim()) ?? 0,
+                      "date":      now,
+                      "createdAt": FieldValue.serverTimestamp(),
                     });
 
                     if (!mounted) return;

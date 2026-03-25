@@ -11,6 +11,7 @@ import 'notifications.dart';
 import 'package:pilates/screen/chat/chat_list_screen.dart';
 import 'customer_explore.dart';
 import 'customer_discover.dart';
+import 'body_progress_screen.dart';
 import '../theme/app_colors.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
@@ -189,7 +190,18 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 14),
+
+                      // İlerleme kartı
+                      _ProgressBanner(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const BodyProgressScreen(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
 
                       // Keşfet banner
                       _ExploreBanner(
@@ -305,6 +317,75 @@ class _ActionButton extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── İlerleme banner
+class _ProgressBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ProgressBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF6366F1), Color(0xFF0EA5E9)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.show_chart_rounded,
+                  color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Vücut İlerlemem",
+                    style: GoogleFonts.playfairDisplay(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    "Ölçümlerini takip et, grafikte gör",
+                    style: GoogleFonts.nunito(
+                        color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded,
+                color: Colors.white70, size: 14),
+          ],
         ),
       ),
     );
