@@ -1,3 +1,4 @@
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -165,10 +166,10 @@ class _SlotListScreenState extends State<SlotListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F6),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text("Seanslar · ${widget.date}"),
-        backgroundColor: const Color(0xFF7A4F4F),
+        backgroundColor: AppColors.deepIndigo,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -318,7 +319,7 @@ class _SlotListScreenState extends State<SlotListScreen> {
     return const Text(
       "Talep Gönder",
       style: TextStyle(
-        color: Color(0xFF7A4F4F),
+        color: AppColors.deepIndigo,
         fontWeight: FontWeight.bold,
       ),
     );

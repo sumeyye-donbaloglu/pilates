@@ -1,3 +1,4 @@
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,10 +11,10 @@ class BusinessRequestsScreen extends StatelessWidget {
     final businessId = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F6),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text("Randevu Talepleri"),
-        backgroundColor: const Color(0xFFE48989),
+        backgroundColor: AppColors.primary,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance

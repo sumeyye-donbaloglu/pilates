@@ -1,3 +1,4 @@
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -74,7 +75,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("Ayarlar kaydedildi"),
-        backgroundColor: Color(0xFFE48989),
+        backgroundColor: AppColors.primary,
       ),
     );
   }
@@ -91,7 +92,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFFE48989),
+              primary: AppColors.primary,
             ),
           ),
           child: child!,
@@ -124,12 +125,12 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label,
-                style: const TextStyle(color: Color(0xFF9E6B6B))),
+                style: const TextStyle(color: AppColors.textMuted)),
             Text(
               value,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF7A4F4F),
+                color: AppColors.deepIndigo,
               ),
             ),
           ],
@@ -146,7 +147,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
         style: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.bold,
-          color: Color(0xFFE48989),
+          color: AppColors.primary,
         ),
       ),
     );
@@ -167,10 +168,10 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F6),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text("Ayarlar"),
-        backgroundColor: const Color(0xFFE48989),
+        backgroundColor: AppColors.primary,
         elevation: 0,
       ),
       body: loading
@@ -255,13 +256,13 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                         borderRadius: BorderRadius.circular(20),
                         gradient: const LinearGradient(
                           colors: [
-                            Color(0xFFE48989),
-                            Color(0xFFB07C7C),
+                            AppColors.primary,
+                            AppColors.textMuted,
                           ],
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFE48989)
+                            color: AppColors.primary
                                 .withOpacity(0.35),
                             blurRadius: 12,
                             offset: const Offset(0, 6),

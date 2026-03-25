@@ -1,3 +1,4 @@
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'slot_list.dart';
 
@@ -26,15 +27,15 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F6),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: const Color(0xFFFFF6F6),
-        iconTheme: const IconThemeData(color: Color(0xFF7A4F4F)),
+        backgroundColor: AppColors.background,
+        iconTheme: const IconThemeData(color: AppColors.deepIndigo),
         title: const Text(
           "Salon Detayı",
           style: TextStyle(
-            color: Color(0xFF7A4F4F),
+            color: AppColors.deepIndigo,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -68,7 +69,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF7A4F4F),
+                      color: AppColors.deepIndigo,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -77,7 +78,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                       const Icon(
                         Icons.location_on_outlined,
                         size: 18,
-                        color: Color(0xFFB07C7C),
+                        color: AppColors.textMuted,
                       ),
                       const SizedBox(width: 6),
                       Expanded(
@@ -85,7 +86,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                           widget.location,
                           style: const TextStyle(
                             fontSize: 14,
-                            color: Color(0xFF9E6B6B),
+                            color: AppColors.textMuted,
                           ),
                         ),
                       ),
@@ -103,7 +104,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF7A4F4F),
+                color: AppColors.deepIndigo,
               ),
             ),
             const SizedBox(height: 10),
@@ -120,7 +121,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                     return Theme(
                       data: Theme.of(context).copyWith(
                         colorScheme: const ColorScheme.light(
-                          primary: Color(0xFFB07C7C),
+                          primary: AppColors.textMuted,
                         ),
                       ),
                       child: child!,
@@ -147,13 +148,13 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF7A4F4F),
+                        color: AppColors.deepIndigo,
                       ),
                     ),
                     const Icon(
                       Icons.calendar_today_outlined,
                       size: 18,
-                      color: Color(0xFFB07C7C),
+                      color: AppColors.textMuted,
                     ),
                   ],
                 ),
@@ -179,7 +180,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7A4F4F),
+                  backgroundColor: AppColors.deepIndigo,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   shape: RoundedRectangleBorder(

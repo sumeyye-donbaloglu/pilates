@@ -1,42 +1,13 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
+
+import 'cloudinary_service.dart';
 
 class BusinessPostService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ImagePicker _picker = ImagePicker();
-
-  // Cloudinary ayarları
-  static const String _cloudName = "da7gq8fdo";
-  static const String _uploadPreset = "pilates_unsigned";
-
-  Future<String?> _uploadToCloudinary(File imageFile) async {
-    final uri = Uri.parse(
-      "https://api.cloudinary.com/v1_1/$_cloudName/image/upload",
-    );
-
-    final request = http.MultipartRequest("POST", uri);
-    request.fields["upload_preset"] = _uploadPreset;
-
-    request.files.add(
-      await http.MultipartFile.fromPath("file", imageFile.path),
-    );
-
-    final streamedResponse = await request.send();
-    final body = await streamedResponse.stream.bytesToString();
-
-    if (streamedResponse.statusCode != 200) {
-      print("Cloudinary upload failed: ${streamedResponse.statusCode}");
-      print("Cloudinary response: $body");
-      return null;
-    }
-
-    final json = jsonDecode(body);
-    return json["secure_url"] as String?;
-  }
 
   /// true  -> foto yüklendi
   /// false -> iptal / hata
@@ -53,7 +24,7 @@ class BusinessPostService {
       final File imageFile = File(pickedFile.path);
 
       // 2️⃣ Cloudinary'ye yükle ve URL al
-      final String? downloadUrl = await _uploadToCloudinary(imageFile);
+      final String? downloadUrl = await CloudinaryService.uploadImage(imageFile);
       if (downloadUrl == null) return false;
 
       // 3️⃣ BUSINESS İSMİNİ ÇEK

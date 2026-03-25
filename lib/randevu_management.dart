@@ -1,3 +1,4 @@
+import 'theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'services/daily_slot_service.dart';
 
@@ -109,10 +110,10 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F6),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text("Randevu Yönetimi"),
-        backgroundColor: const Color(0xFFE48989),
+        backgroundColor: AppColors.primary,
         elevation: 0,
       ),
       body: Column(
@@ -152,7 +153,7 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
             return Theme(
               data: Theme.of(context).copyWith(
                 colorScheme: const ColorScheme.light(
-                  primary: Color(0xFFE48989),
+                  primary: AppColors.primary,
                 ),
               ),
               child: child!,
@@ -185,7 +186,7 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
               width: 62,
               height: 62,
               decoration: BoxDecoration(
-                color: const Color(0xFFE48989),
+                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Center(
@@ -211,7 +212,7 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF7A4F4F),
+                    color: AppColors.deepIndigo,
                     letterSpacing: 0.6,
                   ),
                 ),
@@ -221,7 +222,7 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFF9E6B6B),
+                    color: AppColors.textMuted,
                   ),
                 ),
               ],
@@ -230,7 +231,7 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
             const Spacer(),
 
             const Icon(Icons.calendar_month,
-                color: Color(0xFFE48989)),
+                color: AppColors.primary),
           ],
         ),
       ),
@@ -251,14 +252,14 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [
-                  Color(0xFFE48989),
-                  Color(0xFFB07C7C),
+                  AppColors.primary,
+                  AppColors.textMuted,
                 ],
               ),
               borderRadius: BorderRadius.circular(22),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFE48989).withOpacity(0.35),
+                  color: AppColors.primary.withOpacity(0.35),
                   blurRadius: 14,
                   offset: const Offset(0, 6),
                 ),
@@ -316,7 +317,7 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF7A4F4F),
+                  color: AppColors.deepIndigo,
                 ),
               ),
               const SizedBox(height: 6),

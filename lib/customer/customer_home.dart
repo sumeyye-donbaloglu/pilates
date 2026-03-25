@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'body_info.dart';
 import 'business_list.dart';
@@ -10,7 +11,7 @@ import 'notifications.dart';
 import 'package:pilates/screen/chat/chat_list_screen.dart';
 import 'customer_explore.dart';
 import 'customer_discover.dart';
- 
+import '../theme/app_colors.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -21,7 +22,6 @@ class CustomerHomeScreen extends StatefulWidget {
 
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   bool loading = true;
-
   String name = "";
   Map<String, dynamic>? bodyInfo;
 
@@ -33,26 +33,17 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
   Future<void> loadCustomerData() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
-
-    final doc =
-        await FirebaseFirestore.instance.collection('users').doc(uid).get();
-
+    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
     if (!doc.exists) return;
-
     final data = doc.data()!;
-    final completed = data['bodyInfoCompleted'] == true;
-
-    if (!completed) {
+    if (data['bodyInfoCompleted'] != true) {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => const BodyInfoOnboardingScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const BodyInfoOnboardingScreen()),
       );
       return;
     }
-
     setState(() {
       name = data['name'] ?? "";
       bodyInfo = Map<String, dynamic>.from(data['bodyInfo'] ?? {});
@@ -63,7 +54,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   Future<void> logout() async {
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
-
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const WelcomeScreen()),
@@ -76,221 +66,141 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F6),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFFFF6F6),
-        elevation: 0,
-        leading: const SizedBox.shrink(),
-        actions: [
-          
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('notifications')
-                .where('userId', isEqualTo: uid)
-                .where('isRead', isEqualTo: false)
-                .snapshots(),
-            builder: (context, snapshot) {
-              final hasUnread =
-                  snapshot.hasData && snapshot.data!.docs.isNotEmpty;
-
-              return IconButton(
-                icon: Stack(
-                  children: [
-                    const Icon(Icons.notifications,
-                        color: Color(0xFFE48989)),
-                    if (hasUnread)
-                      const Positioned(
-                        right: 0,
-                        top: 0,
-                        child: CircleAvatar(
-                          radius: 5,
-                          backgroundColor: Colors.red,
-                        ),
-                      ),
-                  ],
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const NotificationsScreen(),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Color(0xFFE48989)),
-            onPressed: logout,
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.background,
       body: loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Hoş geldiniz",
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Color(0xFF9E6B6B),
+          : CustomScrollView(
+              slivers: [
+                // ── GRADIENT HEADER
+                SliverToBoxAdapter(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.gradientStart, AppColors.gradientEnd],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(32),
+                        bottomRight: Radius.circular(32),
+                      ),
+                    ),
+                    child: SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 16, 8, 28),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Üst satır
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Reformerly",
+                                  style: GoogleFonts.playfairDisplay(
+                                    color: Colors.white70,
+                                    fontSize: 15,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    _NotifButton(userId: uid),
+                                    IconButton(
+                                      icon: const Icon(Icons.logout_rounded,
+                                          color: Colors.white70, size: 22),
+                                      onPressed: logout,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              "Hoş geldiniz,",
+                              style: GoogleFonts.nunito(
+                                color: Colors.white70,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              name,
+                              style: GoogleFonts.playfairDisplay(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Randevularınızı ve salonları buradan yönetin",
+                              style: GoogleFonts.nunito(
+                                color: Colors.white60,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF9E6B6B),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        "Randevularınızı ve mesajlarınızı buradan yönetebilirsiniz",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFFB07C7C),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
 
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        _BodyInfoCard(bodyInfo: bodyInfo!),
-                        const SizedBox(height: 20),
+                // ── İÇERİK
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      // Vücut bilgileri kartı
+                      _BodyInfoCard(bodyInfo: bodyInfo!),
+                      const SizedBox(height: 20),
 
-                        // ✅ RANDEVULARIM
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
+                      // Hızlı aksiyon butonları
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _ActionButton(
+                              label: "Randevularım",
+                              icon: Icons.event_note_rounded,
+                              color: AppColors.primary,
+                              onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      const CustomerAppointmentsScreen(),
+                                  builder: (_) => const CustomerAppointmentsScreen(),
                                 ),
-                              );
-                            },
-                            icon: const Icon(Icons.event_note),
-                            label: const Text("Randevularım"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFE48989),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
                               ),
-                              elevation: 0,
                             ),
                           ),
-                        ),
-
-                        const SizedBox(height: 14),
-
-                        // 💬 MESAJLAR (DM) – YENİ EKLENEN
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _ActionButton(
+                              label: "Mesajlar",
+                              icon: Icons.chat_bubble_rounded,
+                              color: AppColors.purple,
+                              onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => const ChatListScreen(
-                                    isBusiness: false,
-                                  ),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.chat_bubble_outline),
-                            label: const Text("Mesajlar"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: const Color(0xFFE48989),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                side: const BorderSide(
-                                  color: Color(0xFFE48989),
+                                  builder: (_) => const ChatListScreen(isBusiness: false),
                                 ),
                               ),
-                              elevation: 0,
                             ),
                           ),
-                        ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
 
-                        const SizedBox(height: 18),
-
-                        // 🌸 REFORMER KEŞFET
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    const CustomerDiscoverScreen(),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 18, horizontal: 20),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFFE48989),
-                                  Color(0xFFB07C7C),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Color(0xFFE48989)
-                                      .withOpacity(0.35),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.explore,
-                                    color: Colors.white, size: 22),
-                                SizedBox(width: 10),
-                                Text(
-                                  "Reformer Salonlarını Keşfet",
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
+                      // Keşfet banner
+                      _ExploreBanner(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CustomerDiscoverScreen(),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ]),
                   ),
                 ),
               ],
@@ -299,58 +209,289 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   }
 }
 
-// --------------------------------------------------
+// ── Bildirim butonu
+class _NotifButton extends StatelessWidget {
+  final String userId;
+  const _NotifButton({required this.userId});
 
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('notifications')
+          .where('userId', isEqualTo: userId)
+          .where('isRead', isEqualTo: false)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final hasUnread = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+        return IconButton(
+          icon: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(Icons.notifications_rounded, color: Colors.white, size: 24),
+              if (hasUnread)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: const BoxDecoration(
+                      color: AppColors.accentPink,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Aksiyon butonu (ikon + yazı)
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.35),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  style: GoogleFonts.nunito(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Keşfet banner
+class _ExploreBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ExploreBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 24),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF7C3AED), Color(0xFF0EA5E9)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.purple.withOpacity(0.35),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.explore_rounded, color: Colors.white, size: 26),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Reformer Salonlarını Keşfet",
+                    style: GoogleFonts.playfairDisplay(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    "Sana en yakın salonu bul",
+                    style: GoogleFonts.nunito(
+                      color: Colors.white70,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded,
+                color: Colors.white70, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Vücut bilgileri kartı
 class _BodyInfoCard extends StatelessWidget {
   final Map<String, dynamic> bodyInfo;
-
   const _BodyInfoCard({required this.bodyInfo});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 10),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.07),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Vücut Bilgileri",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFE48989),
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.gradientStart, AppColors.gradientEnd],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.monitor_weight_rounded,
+                    color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                "Vücut Bilgileri",
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.deepIndigo,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          _info("Boy", "${bodyInfo['height']} cm"),
-          _info("Kilo", "${bodyInfo['weight']} kg"),
-          _info("Bel", "${bodyInfo['waist']} cm"),
-          _info("Kalça", "${bodyInfo['hip']} cm"),
-          if (bodyInfo['fatPercent'] != null &&
-              bodyInfo['fatPercent'].toString().isNotEmpty)
-            _info("Yağ Oranı", "%${bodyInfo['fatPercent']}"),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              if (bodyInfo['height'] != null)
+                _InfoChip(label: "Boy", value: "${bodyInfo['height']} cm",
+                    color: const Color(0xFF6366F1)),
+              if (bodyInfo['weight'] != null)
+                _InfoChip(label: "Kilo", value: "${bodyInfo['weight']} kg",
+                    color: const Color(0xFF7C3AED)),
+              if (bodyInfo['waist'] != null)
+                _InfoChip(label: "Bel", value: "${bodyInfo['waist']} cm",
+                    color: const Color(0xFF0EA5E9)),
+              if (bodyInfo['hip'] != null)
+                _InfoChip(label: "Kalça", value: "${bodyInfo['hip']} cm",
+                    color: const Color(0xFF14B8A6)),
+              if (bodyInfo['fatPercent'] != null &&
+                  bodyInfo['fatPercent'].toString().isNotEmpty)
+                _InfoChip(label: "Yağ", value: "%${bodyInfo['fatPercent']}",
+                    color: const Color(0xFFF472B6)),
+            ],
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _info(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        "$label: $value",
-        style: const TextStyle(
-          fontSize: 15,
-          color: Color(0xFF7A4F4F),
-        ),
+class _InfoChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _InfoChip({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.09),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: GoogleFonts.nunito(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: GoogleFonts.nunito(
+              fontSize: 11,
+              color: AppColors.textMuted,
+            ),
+          ),
+        ],
       ),
     );
   }

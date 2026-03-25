@@ -1,3 +1,4 @@
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -23,10 +24,10 @@ class _BusinessAddPostScreenState
     final service = BusinessPostService();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F6),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text("Fotoğraf Ekle"),
-        backgroundColor: const Color(0xFFE48989),
+        backgroundColor: AppColors.primary,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -54,7 +55,7 @@ class _BusinessAddPostScreenState
                   const Icon(
                     Icons.photo_library_outlined,
                     size: 64,
-                    color: Color(0xFFE48989),
+                    color: AppColors.primary,
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -62,7 +63,7 @@ class _BusinessAddPostScreenState
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 15,
-                      color: Color(0xFF7A4F4F),
+                      color: AppColors.deepIndigo,
                     ),
                   ),
                   const SizedBox(height: 28),
@@ -125,7 +126,7 @@ class _BusinessAddPostScreenState
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
-                            const Color(0xFFE48989),
+                            AppColors.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           vertical: 16,

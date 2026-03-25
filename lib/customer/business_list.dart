@@ -1,3 +1,4 @@
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../business/business_profile_screen.dart';
@@ -8,7 +9,7 @@ class BusinessListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFFFF6F6),
+      color: AppColors.background,
       child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('businesses')
@@ -27,7 +28,7 @@ class BusinessListScreen extends StatelessWidget {
                 "Henüz kayıtlı salon yok.",
                 style: TextStyle(
                   fontSize: 16,
-                  color: Color(0xFF7A4F4F),
+                  color: AppColors.deepIndigo,
                 ),
               ),
             );
@@ -89,7 +90,7 @@ class BusinessListScreen extends StatelessWidget {
                         ),
                         child: const Icon(
                           Icons.self_improvement,
-                          color: Color(0xFFE48989),
+                          color: AppColors.primary,
                           size: 26,
                         ),
                       ),
@@ -106,7 +107,7 @@ class BusinessListScreen extends StatelessWidget {
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF7A4F4F),
+                                color: AppColors.deepIndigo,
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -117,7 +118,7 @@ class BusinessListScreen extends StatelessWidget {
                                   const Icon(
                                     Icons.location_on_outlined,
                                     size: 16,
-                                    color: Color(0xFF9E6B6B),
+                                    color: AppColors.textMuted,
                                   ),
                                   const SizedBox(width: 4),
                                   Expanded(
@@ -125,7 +126,7 @@ class BusinessListScreen extends StatelessWidget {
                                       location,
                                       style: const TextStyle(
                                         fontSize: 14,
-                                        color: Color(0xFF9E6B6B),
+                                        color: AppColors.textMuted,
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -150,7 +151,7 @@ class BusinessListScreen extends StatelessWidget {
                       const Icon(
                         Icons.arrow_forward_ios_rounded,
                         size: 18,
-                        color: Color(0xFFB07C7C),
+                        color: AppColors.textMuted,
                       ),
                     ],
                   ),

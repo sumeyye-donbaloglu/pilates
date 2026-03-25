@@ -1,3 +1,4 @@
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -32,15 +33,15 @@ class _BodyInfoOnboardingScreenState extends State<BodyInfoOnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F6),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFF6F6),
+        backgroundColor: AppColors.background,
         elevation: 0,
         centerTitle: true,
         title: const Text(
           "Vücut Bilgileri",
           style: TextStyle(
-            color: Color(0xFF7A4F4F),
+            color: AppColors.deepIndigo,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -113,7 +114,7 @@ class _BodyInfoOnboardingScreenState extends State<BodyInfoOnboardingScreen> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7A4F4F),
+                  backgroundColor: AppColors.deepIndigo,
                   padding: const EdgeInsets.symmetric(
                     vertical: 16,
                     horizontal: 40,
@@ -142,15 +143,15 @@ class _BodyInfoOnboardingScreenState extends State<BodyInfoOnboardingScreen> {
         keyboardType: TextInputType.number,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: Color(0xFF7A4F4F)),
+          labelStyle: const TextStyle(color: AppColors.deepIndigo),
           filled: true,
           fillColor: Colors.white,
           enabledBorder: OutlineInputBorder(
-            borderSide: const BorderSide(color: Color(0xFFDDC3C3)),
+            borderSide: const BorderSide(color: AppColors.border),
             borderRadius: BorderRadius.circular(14),
           ),
           focusedBorder: OutlineInputBorder(
-            borderSide: const BorderSide(color: Color(0xFF7A4F4F)),
+            borderSide: const BorderSide(color: AppColors.deepIndigo),
             borderRadius: BorderRadius.circular(14),
           ),
         ),

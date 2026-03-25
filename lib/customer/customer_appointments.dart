@@ -1,3 +1,4 @@
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -113,8 +114,8 @@ class _CustomerAppointmentsScreenState
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF2B6B6),
-              foregroundColor: const Color(0xFF7A4F4F),
+              backgroundColor: AppColors.softLavender,
+              foregroundColor: AppColors.deepIndigo,
             ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text("İptal Et"),
@@ -162,7 +163,7 @@ class _CustomerAppointmentsScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Randevu iptal edildi"),
-          backgroundColor: Color(0xFFE48989),
+          backgroundColor: AppColors.primary,
         ),
       );
     } catch (e) {
@@ -182,10 +183,10 @@ class _CustomerAppointmentsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F6),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text("Randevularım"),
-        backgroundColor: const Color(0xFFE48989),
+        backgroundColor: AppColors.primary,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -238,7 +239,7 @@ class _CustomerAppointmentsScreenState
       return Center(
         child: Text(
           isActive ? "Aktif randevun yok" : "Geçmiş randevun yok",
-          style: const TextStyle(color: Color(0xFFB07C7C)),
+          style: const TextStyle(color: AppColors.textMuted),
         ),
       );
     }
@@ -268,7 +269,7 @@ class _CustomerAppointmentsScreenState
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFE48989),
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(height: 6),
@@ -276,7 +277,7 @@ class _CustomerAppointmentsScreenState
                 "${data['date']} • ${data['time']}",
                 style: const TextStyle(
                   fontSize: 14,
-                  color: Color(0xFF9E6B6B),
+                  color: AppColors.textMuted,
                 ),
               ),
               if (isActive)
@@ -300,9 +301,9 @@ class _CustomerAppointmentsScreenState
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
-                                const Color(0xFFF2B6B6),
+                                AppColors.softLavender,
                             foregroundColor:
-                                const Color(0xFF7A4F4F),
+                                AppColors.deepIndigo,
                             padding: const EdgeInsets.symmetric(
                                 vertical: 10),
                             elevation: 0,

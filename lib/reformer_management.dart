@@ -1,3 +1,4 @@
+import 'theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -93,10 +94,10 @@ class _ReformerManagementScreenState extends State<ReformerManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F6),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text("Reformer Yönetimi"),
-        backgroundColor: const Color(0xFFE48989),
+        backgroundColor: AppColors.primary,
         elevation: 0,
         actions: [
           IconButton(
@@ -122,7 +123,7 @@ class _ReformerManagementScreenState extends State<ReformerManagementScreen> {
                 "Henüz reformer eklenmemiş",
                 style: TextStyle(
                   fontSize: 16,
-                  color: Color(0xFF9E6B6B),
+                  color: AppColors.textMuted,
                 ),
               ),
             );
@@ -170,7 +171,7 @@ class _ReformerManagementScreenState extends State<ReformerManagementScreen> {
                             style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF7A4F4F),
+                              color: AppColors.deepIndigo,
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -180,7 +181,7 @@ class _ReformerManagementScreenState extends State<ReformerManagementScreen> {
                               value: status,
                               icon: const Icon(
                                 Icons.keyboard_arrow_down,
-                                color: Color(0xFFE48989),
+                                color: AppColors.primary,
                               ),
                               items: const [
                                 DropdownMenuItem(

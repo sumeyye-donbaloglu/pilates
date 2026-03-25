@@ -1,3 +1,4 @@
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'customer_explore.dart';
 import 'business_list.dart';
@@ -10,11 +11,11 @@ class CustomerDiscoverScreen extends StatelessWidget {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: const Color(0xFFFFF6F6),
+        backgroundColor: AppColors.background,
         appBar: AppBar(
           elevation: 0,
           centerTitle: true,
-          backgroundColor: const Color(0xFFE48989),
+          backgroundColor: AppColors.primary,
           title: const Text(
             "Keşfet",
             style: TextStyle(
@@ -43,11 +44,11 @@ class CustomerDiscoverScreen extends StatelessWidget {
               ),
               child: const TabBar( indicatorSize: TabBarIndicatorSize.tab,
   indicator: const BoxDecoration(
-    color: Color(0xFFE48989),
+    color: AppColors.primary,
     borderRadius: BorderRadius.all(Radius.circular(30)),
   ),
   labelColor: Colors.white,
-  unselectedLabelColor: const Color(0xFFE48989),
+  unselectedLabelColor: AppColors.primary,
   tabs: const [
     Tab(
       icon: Icon(Icons.dynamic_feed),

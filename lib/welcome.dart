@@ -43,7 +43,7 @@ class WelcomeScreen extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.primaryDark,
+                      color: AppColors.deepIndigo,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -112,7 +112,7 @@ class WelcomeScreen extends StatelessWidget {
                           color: AppColors.primary,
                           width: 1.6,
                         ),
-                        foregroundColor: AppColors.primaryDark,
+                        foregroundColor: AppColors.deepIndigo,
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18),
@@ -144,7 +144,7 @@ class WelcomeScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.primaryDark,
+                        color: AppColors.deepIndigo,
                         decoration: TextDecoration.underline,
                       ),
                     ),

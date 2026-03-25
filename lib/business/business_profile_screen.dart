@@ -1,13 +1,15 @@
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../firestore_paths.dart';
 import '../customer/business_detail.dart';
 import 'business_add_post.dart';
-import '../screen/chat/chat_detail_screen.dart'; 
+import '../screen/chat/chat_detail_screen.dart';
 import 'post_detail_screen.dart';
-
+import 'business_edit_profile_screen.dart';
 
 class BusinessProfileScreen extends StatelessWidget {
   final String businessId;
@@ -24,10 +26,8 @@ class BusinessProfileScreen extends StatelessWidget {
   }) async {
     final currentUser = FirebaseAuth.instance.currentUser!;
     final customerId = currentUser.uid;
-
     final chatsRef = FirebaseFirestore.instance.collection('chats');
 
-    // 🔍 Daha önce chat var mı?
     final existingChat = await chatsRef
         .where('businessId', isEqualTo: businessId)
         .where('customerId', isEqualTo: customerId)
@@ -35,12 +35,9 @@ class BusinessProfileScreen extends StatelessWidget {
         .get();
 
     late String chatId;
-
     if (existingChat.docs.isNotEmpty) {
-      // ✅ VAR → mevcut chat
       chatId = existingChat.docs.first.id;
     } else {
-      // ❌ YOK → yeni chat oluştur
       final chatDoc = await chatsRef.add({
         'businessId': businessId,
         'customerId': customerId,
@@ -50,10 +47,7 @@ class BusinessProfileScreen extends StatelessWidget {
         'unreadForBusiness': 1,
         'unreadForCustomer': 0,
       });
-
       chatId = chatDoc.id;
-
-      // 🟡 SYSTEM MESSAGE
       await chatsRef.doc(chatId).collection('messages').add({
         'senderId': 'system',
         'text': '💬 Müşteri sohbet başlattı',
@@ -62,7 +56,6 @@ class BusinessProfileScreen extends StatelessWidget {
       });
     }
 
-    // 👉 CHAT DETAIL’E GİT
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -80,208 +73,360 @@ class BusinessProfileScreen extends StatelessWidget {
         FirebaseAuth.instance.currentUser?.uid == businessId;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F6),
-      body: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        future: FirestorePaths.businessDoc(businessId).get(),
+      backgroundColor: AppColors.background,
+      // StreamBuilder ile dinliyoruz — düzenleme sonrası otomatik güncellenir
+      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirestorePaths.businessDoc(businessId).snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-
           if (!snapshot.data!.exists) {
             return const Center(child: Text("İşletme bulunamadı"));
           }
 
           final data = snapshot.data!.data()!;
-          final info =
-              Map<String, dynamic>.from(data['businessInfo'] ?? {});
+          final info = Map<String, dynamic>.from(data['businessInfo'] ?? {});
 
-          final name = info['name'] ?? 'Salon';
-          final location = info['location'] ?? '';
-          final bio = info['bio'] ?? 'Henüz açıklama eklenmedi';
+          final name     = info['name']     as String? ?? 'Salon';
+          final location = info['location'] as String? ?? '';
+          final bio      = info['bio']      as String? ?? '';
+          final photoUrl = info['photoUrl'] as String?;
 
           return CustomScrollView(
             slivers: [
+              // ── SLIVER APP BAR
               SliverAppBar(
                 pinned: true,
-                expandedHeight: 240,
+                expandedHeight: 220,
                 elevation: 0,
-                backgroundColor: const Color(0xFFE48989),
+                backgroundColor: AppColors.primary,
                 actions: [
+                  // Fotoğraf ekle (post)
                   if (isOwner)
                     IconButton(
-                      icon: const Icon(Icons.add_a_photo),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const BusinessAddPostScreen(),
+                      icon: const Icon(Icons.add_photo_alternate_rounded),
+                      tooltip: "Fotoğraf Ekle",
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const BusinessAddPostScreen(),
+                        ),
+                      ),
+                    ),
+                  // Profili düzenle
+                  if (isOwner)
+                    IconButton(
+                      icon: const Icon(Icons.edit_rounded),
+                      tooltip: "Profili Düzenle",
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BusinessEditProfileScreen(
+                            businessId: businessId,
                           ),
-                        );
-                      },
+                        ),
+                      ),
                     ),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
-                  title: Text(name),
-                  background: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Color(0xFFE48989),
-                          Color(0xFFB07C7C),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
+                  titlePadding:
+                      const EdgeInsets.only(left: 60, bottom: 14, right: 16),
+                  title: Text(
+                    name,
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ),
-
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  background: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      Text(location),
-                      const SizedBox(height: 8),
-                      Text(bio),
-                      const SizedBox(height: 18),
-
-                      // 🌸 RANDEVU AL
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => BusinessDetailScreen(
-                                  businessId: businessId,
-                                  name: name,
-                                  location: location,
-                                ),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFE48989),
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 16),
+                      // Gradient arka plan
+                      Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.gradientStart,
+                              AppColors.gradientEnd
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          child: const Text("Randevu Al"),
                         ),
                       ),
-
-                      const SizedBox(height: 12),
-
-                      // 💬 MESAJ GÖNDER (MODEL 2)
-                      if (!isOwner)
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            icon: const Icon(Icons.chat_bubble_outline),
-                            label: const Text("Mesaj Gönder"),
-                            onPressed: () {
-                              _openOrCreateChat(
-                                context,
-                                businessId: businessId,
-                                businessName: name,
-                              );
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor:
-                                  const Color(0xFFE48989),
-                              side: const BorderSide(
-                                  color: Color(0xFFE48989)),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(18),
-                              ),
+                      // Profil fotoğrafı — ortada
+                      Positioned(
+                        bottom: 50,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: Container(
+                            width: 90,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.surface,
+                              border: Border.all(
+                                  color: Colors.white, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: photoUrl != null
+                                  ? Image.network(
+                                      photoUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          _defaultAvatar(),
+                                    )
+                                  : _defaultAvatar(),
                             ),
                           ),
                         ),
+                      ),
                     ],
                   ),
                 ),
               ),
 
-              // 📸 FOTO GALERİ
-StreamBuilder<QuerySnapshot>(
-  stream: FirebaseFirestore.instance
-      .collection('posts')
-      .where('businessId', isEqualTo: businessId)
-      .orderBy('createdAtClient', descending: true)
-      .snapshots(),
-  builder: (context, snapshot) {
-    if (!snapshot.hasData) {
-      return const SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
+              // ── BİLGİLER
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Konum
+                      if (location.isNotEmpty)
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on_rounded,
+                                color: AppColors.lavender, size: 16),
+                            const SizedBox(width: 4),
+                            Text(
+                              location,
+                              style: GoogleFonts.nunito(
+                                fontSize: 14,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
 
-    final docs = snapshot.data!.docs;
+                      const SizedBox(height: 16),
 
-    if (docs.isEmpty) {
-      return const SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Center(
-            child: Text("Henüz fotoğraf yok"),
-          ),
-        ),
-      );
-    }
+                      // Açıklama
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: bio.isNotEmpty
+                            ? Text(
+                                bio,
+                                style: GoogleFonts.nunito(
+                                  fontSize: 14,
+                                  color: AppColors.text,
+                                  height: 1.6,
+                                ),
+                              )
+                            : Row(
+                                children: [
+                                  const Icon(Icons.edit_note_rounded,
+                                      color: AppColors.lavender, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      isOwner
+                                          ? "Henüz açıklama eklenmedi. Profili Düzenle'ye dokun."
+                                          : "Bu işletme henüz açıklama eklemedi.",
+                                      style: GoogleFonts.nunito(
+                                        fontSize: 13,
+                                        color: AppColors.textMuted,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
 
-    return SliverPadding(
-      padding: const EdgeInsets.all(8),
-      sliver: SliverGrid(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final data =
-                docs[index].data() as Map<String, dynamic>;
+                      const SizedBox(height: 16),
 
-            return GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PostDetailScreen(
-                      postId: docs[index].id,
-                      postData: data,
-                    ),
+                      // Randevu Al
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.event_available_rounded),
+                          label: const Text("Randevu Al"),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BusinessDetailScreen(
+                                businessId: businessId,
+                                name: name,
+                                location: location,
+                              ),
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Mesaj Gönder (sadece müşteriye)
+                      if (!isOwner) ...[
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.chat_bubble_outline_rounded),
+                            label: const Text("Mesaj Gönder"),
+                            onPressed: () => _openOrCreateChat(
+                              context,
+                              businessId: businessId,
+                              businessName: name,
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: const BorderSide(
+                                  color: AppColors.primary, width: 1.5),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 15),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 20),
+
+                      // Paylaşılan Fotoğraflar başlığı
+                      Text(
+                        "Fotoğraflar",
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.deepIndigo,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                   ),
-                );
-              },
-              child: Image.network(
-                data['imageUrl'],
-                fit: BoxFit.cover,
+                ),
               ),
-            );
-          },
-          childCount: docs.length,
-        ),
-        gridDelegate:
-            const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-        ),
-      ),
-    );
-  },
-),
+
+              // ── FOTO GALERİ
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('posts')
+                    .where('businessId', isEqualTo: businessId)
+                    .orderBy('createdAtClient', descending: true)
+                    .snapshots(),
+                builder: (context, snap) {
+                  if (!snap.hasData) {
+                    return const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    );
+                  }
+
+                  final docs = snap.data!.docs;
+                  if (docs.isEmpty) {
+                    return SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Center(
+                          child: Text(
+                            "Henüz fotoğraf paylaşılmadı",
+                            style: GoogleFonts.nunito(
+                              color: AppColors.textMuted,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return SliverPadding(
+                    padding:
+                        const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    sliver: SliverGrid(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final postData = docs[index].data()
+                              as Map<String, dynamic>;
+                          return GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PostDetailScreen(
+                                  postId: docs[index].id,
+                                  postData: postData,
+                                ),
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                postData['imageUrl'],
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: AppColors.surfaceTint,
+                                  child: const Icon(Icons.broken_image_rounded,
+                                      color: AppColors.lavender),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        childCount: docs.length,
+                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ],
           );
         },
       ),
+    );
+  }
+
+  Widget _defaultAvatar() {
+    return Container(
+      color: AppColors.surfaceTint,
+      child: const Icon(Icons.store_rounded,
+          color: AppColors.lavender, size: 40),
     );
   }
 }

@@ -1,3 +1,4 @@
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -29,7 +30,7 @@ class CustomerExploreScreen extends StatelessWidget {
           return const Center(
             child: Text(
               "Henüz paylaşım yok",
-              style: TextStyle(color: Color(0xFF7A4F4F)),
+              style: TextStyle(color: AppColors.deepIndigo),
             ),
           );
         }
@@ -89,7 +90,7 @@ class CustomerExploreScreen extends StatelessWidget {
                                 const Color(0xFFEFE3E3),
                             child: const Icon(
                               Icons.store,
-                              color: Color(0xFF7A4F4F),
+                              color: AppColors.deepIndigo,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -99,7 +100,7 @@ class CustomerExploreScreen extends StatelessWidget {
                               style: const TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF7A4F4F),
+                                color: AppColors.deepIndigo,
                               ),
                             ),
                           ),
@@ -156,7 +157,7 @@ class CustomerExploreScreen extends StatelessWidget {
                                     : Icons.favorite_border,
                                 color: isLiked
                                     ? Colors.red
-                                    : const Color(0xFF7A4F4F),
+                                    : AppColors.deepIndigo,
                               ),
                             );
                           },
@@ -169,7 +170,7 @@ class CustomerExploreScreen extends StatelessWidget {
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 15,
-                            color: Color(0xFF7A4F4F),
+                            color: AppColors.deepIndigo,
                           ),
                         ),
 
@@ -182,7 +183,7 @@ class CustomerExploreScreen extends StatelessWidget {
                               const BoxConstraints(),
                           icon: const Icon(
                             Icons.chat_bubble_outline,
-                            color: Color(0xFF7A4F4F),
+                            color: AppColors.deepIndigo,
                           ),
                           onPressed: () {
                             Navigator.push(
@@ -204,7 +205,7 @@ class CustomerExploreScreen extends StatelessWidget {
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 15,
-                            color: Color(0xFF7A4F4F),
+                            color: AppColors.deepIndigo,
                           ),
                         ),
                       ],

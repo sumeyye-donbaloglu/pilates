@@ -74,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
       prefixIcon: Icon(icon, color: AppColors.primary),
       filled: true,
       fillColor: Colors.white,
-      labelStyle: const TextStyle(color: AppColors.primaryDark),
+      labelStyle: const TextStyle(color: AppColors.deepIndigo),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppColors.border),
@@ -109,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primaryDark,
+                  color: AppColors.deepIndigo,
                 ),
               ),
 
@@ -174,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     "Geri Dön",
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: AppColors.primaryDark,
+                      color: AppColors.deepIndigo,
                     ),
                   ),
                 ),

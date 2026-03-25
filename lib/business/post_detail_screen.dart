@@ -1,3 +1,4 @@
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -201,7 +202,7 @@ class _PostDetailScreenState
                               const Icon(
                             Icons.send,
                             color: Color(
-                                0xFFE48989),
+                                0xFF9B3030),
                           ),
                           onPressed:
                               () async {
@@ -274,10 +275,10 @@ class _PostDetailScreenState
 
     return Scaffold(
       backgroundColor:
-          const Color(0xFFFFF6F6),
+          AppColors.background,
       appBar: AppBar(
         backgroundColor:
-            const Color(0xFFE48989),
+            AppColors.primary,
         title: const Text("Post"),
         centerTitle: true,
       ),

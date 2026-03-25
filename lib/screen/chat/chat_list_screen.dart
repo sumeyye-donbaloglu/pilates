@@ -1,3 +1,4 @@
+import '../../theme/app_colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -35,10 +36,10 @@ class ChatListScreen extends StatelessWidget {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F6),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text("Mesajlar"),
-        backgroundColor: const Color(0xFFE48989),
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -90,7 +91,7 @@ class ChatListScreen extends StatelessWidget {
 
                   return ListTile(
                     leading: const CircleAvatar(
-                      backgroundColor: Color(0xFFE48989),
+                      backgroundColor: AppColors.primary,
                       child: Icon(Icons.person, color: Colors.white),
                     ),
                     title: Text(

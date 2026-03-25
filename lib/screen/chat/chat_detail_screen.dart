@@ -1,3 +1,4 @@
+import '../../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -83,7 +84,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         padding: const EdgeInsets.all(12),
         constraints: const BoxConstraints(maxWidth: 280),
         decoration: BoxDecoration(
-          color: isMe ? const Color(0xFFE48989) : Colors.white,
+          color: isMe ? AppColors.primary : Colors.white,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
@@ -102,10 +103,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F6),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(widget.otherUserName),
-        backgroundColor: const Color(0xFFE48989),
+        backgroundColor: AppColors.primary,
       ),
       body: Column(
         children: [
@@ -157,7 +158,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       decoration: InputDecoration(
                         hintText: "Mesaj yaz...",
                         filled: true,
-                        fillColor: const Color(0xFFFFF6F6),
+                        fillColor: AppColors.background,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,
@@ -168,7 +169,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.send),
-                    color: const Color(0xFFE48989),
+                    color: AppColors.primary,
                     onPressed: sendMessage,
                   ),
                 ],
