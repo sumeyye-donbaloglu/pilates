@@ -12,6 +12,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
 
 
@@ -25,6 +27,7 @@ dependencies:
   http: ^1.1.0
   google_fonts: ^6.2.1
   fl_chart: ^0.70.2
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

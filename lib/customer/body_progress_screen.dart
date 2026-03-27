@@ -22,10 +22,15 @@ class _BodyProgressScreenState extends State<BodyProgressScreen> {
   String _selectedMetric = 'weight';
 
   final _metrics = const [
-    _Metric('weight',     'Kilo',      'kg',  Color(0xFF6366F1)),
-    _Metric('waist',      'Bel',       'cm',  Color(0xFF7C3AED)),
-    _Metric('hip',        'Kalça',     'cm',  Color(0xFF0EA5E9)),
-    _Metric('fatPercent', 'Yağ Oranı', '%',   Color(0xFFF472B6)),
+    _Metric('weight',   'Kilo',       'kg',  Color(0xFF6366F1)),
+    _Metric('waist',    'Bel',        'cm',  Color(0xFF7C3AED)),
+    _Metric('hip',      'Basen',      'cm',  Color(0xFF0EA5E9)),
+    _Metric('lowerAb',  'Alt Karın',  'cm',  Color(0xFFF472B6)),
+    _Metric('neck',     'Boyun',      'cm',  Color(0xFF10B981)),
+    _Metric('rightArm', 'Sağ Kol',   'cm',  Color(0xFFF59E0B)),
+    _Metric('leftArm',  'Sol Kol',   'cm',  Color(0xFFEF4444)),
+    _Metric('rightLeg', 'Sağ Bacak', 'cm',  Color(0xFF8B5CF6)),
+    _Metric('leftLeg',  'Sol Bacak', 'cm',  Color(0xFFEC4899)),
   ];
 
   _Metric get _current =>
@@ -73,12 +78,17 @@ class _BodyProgressScreenState extends State<BodyProgressScreen> {
           final measurements = docs.map((d) {
             final data = d.data() as Map<String, dynamic>;
             return _MeasurementEntry(
-              id: d.id,
-              date: (data['date'] as Timestamp).toDate(),
-              weight:     _toDouble(data['weight']),
-              waist:      _toDouble(data['waist']),
-              hip:        _toDouble(data['hip']),
-              fatPercent: _toDouble(data['fatPercent']),
+              id:       d.id,
+              date:     (data['date'] as Timestamp).toDate(),
+              weight:   _toDouble(data['weight']),
+              neck:     _toDouble(data['neck']),
+              waist:    _toDouble(data['waist']),
+              lowerAb:  _toDouble(data['lowerAb']),
+              hip:      _toDouble(data['hip']),
+              rightArm: _toDouble(data['rightArm']),
+              leftArm:  _toDouble(data['leftArm']),
+              rightLeg: _toDouble(data['rightLeg']),
+              leftLeg:  _toDouble(data['leftLeg']),
             );
           }).toList();
 
@@ -406,10 +416,8 @@ class _SummaryRow extends StatelessWidget {
     final first = vals.first;
     final last  = vals.last;
     final diff  = last - first;
-    final isGood = metric.key == 'weight' || metric.key == 'waist' ||
-        metric.key == 'hip' || metric.key == 'fatPercent'
-        ? diff <= 0
-        : diff >= 0;
+    // Kilo ve çevre ölçülerinde azalma iyidir
+    final isGood = diff <= 0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -555,12 +563,12 @@ class _MeasurementTile extends StatelessWidget {
 
   String _allValues() {
     final parts = <String>[];
-    if (entry.weight > 0) parts.add("${entry.weight.toStringAsFixed(1)} kg");
-    if (entry.waist > 0) parts.add("Bel ${entry.waist.toStringAsFixed(1)} cm");
-    if (entry.hip > 0) parts.add("Kalça ${entry.hip.toStringAsFixed(1)} cm");
-    if (entry.fatPercent > 0) {
-      parts.add("Yağ %${entry.fatPercent.toStringAsFixed(1)}");
-    }
+    if (entry.weight   > 0) parts.add("${entry.weight.toStringAsFixed(1)} kg");
+    if (entry.waist    > 0) parts.add("Bel ${entry.waist.toStringAsFixed(1)}");
+    if (entry.hip      > 0) parts.add("Basen ${entry.hip.toStringAsFixed(1)}");
+    if (entry.lowerAb  > 0) parts.add("Alt K. ${entry.lowerAb.toStringAsFixed(1)}");
+    if (entry.rightArm > 0) parts.add("S.Kol ${entry.rightArm.toStringAsFixed(1)}");
+    if (entry.rightLeg > 0) parts.add("S.Bacak ${entry.rightLeg.toStringAsFixed(1)}");
     return parts.join("  ·  ");
   }
 }
@@ -578,19 +586,29 @@ class _AddMeasurementSheet extends StatefulWidget {
 }
 
 class _AddMeasurementSheetState extends State<_AddMeasurementSheet> {
-  final _weightCtrl = TextEditingController();
-  final _waistCtrl  = TextEditingController();
-  final _hipCtrl    = TextEditingController();
-  final _fatCtrl    = TextEditingController();
+  final _weightCtrl   = TextEditingController();
+  final _neckCtrl     = TextEditingController();
+  final _waistCtrl    = TextEditingController();
+  final _lowerAbCtrl  = TextEditingController();
+  final _hipCtrl      = TextEditingController();
+  final _rightArmCtrl = TextEditingController();
+  final _leftArmCtrl  = TextEditingController();
+  final _rightLegCtrl = TextEditingController();
+  final _leftLegCtrl  = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   bool _saving = false;
 
   @override
   void dispose() {
     _weightCtrl.dispose();
+    _neckCtrl.dispose();
     _waistCtrl.dispose();
+    _lowerAbCtrl.dispose();
     _hipCtrl.dispose();
-    _fatCtrl.dispose();
+    _rightArmCtrl.dispose();
+    _leftArmCtrl.dispose();
+    _rightLegCtrl.dispose();
+    _leftLegCtrl.dispose();
     super.dispose();
   }
 
@@ -622,14 +640,22 @@ class _AddMeasurementSheetState extends State<_AddMeasurementSheet> {
       return;
     }
 
+    double _p(TextEditingController c) =>
+        double.tryParse(c.text.trim()) ?? 0;
+
     setState(() => _saving = true);
     try {
       final data = {
-        'weight': weight,
-        'waist':  double.tryParse(_waistCtrl.text.trim()) ?? 0,
-        'hip':    double.tryParse(_hipCtrl.text.trim()) ?? 0,
-        'fatPercent': double.tryParse(_fatCtrl.text.trim()) ?? 0,
-        'date':   Timestamp.fromDate(_selectedDate),
+        'weight':   weight,
+        'neck':     _p(_neckCtrl),
+        'waist':    _p(_waistCtrl),
+        'lowerAb':  _p(_lowerAbCtrl),
+        'hip':      _p(_hipCtrl),
+        'rightArm': _p(_rightArmCtrl),
+        'leftArm':  _p(_leftArmCtrl),
+        'rightLeg': _p(_rightLegCtrl),
+        'leftLeg':  _p(_leftLegCtrl),
+        'date':      Timestamp.fromDate(_selectedDate),
         'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -638,19 +664,11 @@ class _AddMeasurementSheetState extends State<_AddMeasurementSheet> {
           .collection(_measurementsPath(widget.uid))
           .add(data);
 
-      // Ana users dokümanındaki bodyInfo'yu da güncelle (geriye uyumluluk)
+      // Ana dokümanı güncelle
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.uid)
-          .update({
-        'bodyInfo.weight': weight,
-        if (_waistCtrl.text.trim().isNotEmpty)
-          'bodyInfo.waist': _waistCtrl.text.trim(),
-        if (_hipCtrl.text.trim().isNotEmpty)
-          'bodyInfo.hip': _hipCtrl.text.trim(),
-        if (_fatCtrl.text.trim().isNotEmpty)
-          'bodyInfo.fatPercent': _fatCtrl.text.trim(),
-      });
+          .update({'bodyInfo.weight': weight});
 
       if (!mounted) return;
       Navigator.pop(context);
@@ -749,38 +767,35 @@ class _AddMeasurementSheetState extends State<_AddMeasurementSheet> {
             ),
             const SizedBox(height: 16),
 
-            // 2 sütun alan
-            Row(
-              children: [
-                Expanded(
-                    child: _SheetField(
-                        ctrl: _weightCtrl,
-                        label: "Kilo *",
-                        unit: "kg")),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: _SheetField(
-                        ctrl: _waistCtrl,
-                        label: "Bel",
-                        unit: "cm")),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                    child: _SheetField(
-                        ctrl: _hipCtrl,
-                        label: "Kalça",
-                        unit: "cm")),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: _SheetField(
-                        ctrl: _fatCtrl,
-                        label: "Yağ Oranı",
-                        unit: "%")),
-              ],
-            ),
+            // Genel
+            Row(children: [
+              Expanded(child: _SheetField(ctrl: _weightCtrl, label: "Kilo *", unit: "kg")),
+              const SizedBox(width: 12),
+              Expanded(child: _SheetField(ctrl: _neckCtrl,   label: "Boyun",  unit: "cm")),
+            ]),
+            const SizedBox(height: 10),
+            // Gövde
+            Row(children: [
+              Expanded(child: _SheetField(ctrl: _waistCtrl,   label: "Bel",      unit: "cm")),
+              const SizedBox(width: 12),
+              Expanded(child: _SheetField(ctrl: _lowerAbCtrl, label: "Alt Karın",unit: "cm")),
+            ]),
+            const SizedBox(height: 10),
+            _SheetField(ctrl: _hipCtrl, label: "Basen", unit: "cm"),
+            const SizedBox(height: 10),
+            // Kollar
+            Row(children: [
+              Expanded(child: _SheetField(ctrl: _rightArmCtrl, label: "Sağ Kol", unit: "cm")),
+              const SizedBox(width: 12),
+              Expanded(child: _SheetField(ctrl: _leftArmCtrl,  label: "Sol Kol", unit: "cm")),
+            ]),
+            const SizedBox(height: 10),
+            // Bacaklar
+            Row(children: [
+              Expanded(child: _SheetField(ctrl: _rightLegCtrl, label: "Sağ Bacak", unit: "cm")),
+              const SizedBox(width: 12),
+              Expanded(child: _SheetField(ctrl: _leftLegCtrl,  label: "Sol Bacak", unit: "cm")),
+            ]),
             const SizedBox(height: 20),
 
             SizedBox(
@@ -939,26 +954,41 @@ class _MeasurementEntry {
   final String id;
   final DateTime date;
   final double weight;
+  final double neck;
   final double waist;
+  final double lowerAb;
   final double hip;
-  final double fatPercent;
+  final double rightArm;
+  final double leftArm;
+  final double rightLeg;
+  final double leftLeg;
 
   const _MeasurementEntry({
     required this.id,
     required this.date,
     required this.weight,
+    required this.neck,
     required this.waist,
+    required this.lowerAb,
     required this.hip,
-    required this.fatPercent,
+    required this.rightArm,
+    required this.leftArm,
+    required this.rightLeg,
+    required this.leftLeg,
   });
 
   double valueOf(String key) {
     switch (key) {
-      case 'weight':     return weight;
-      case 'waist':      return waist;
-      case 'hip':        return hip;
-      case 'fatPercent': return fatPercent;
-      default:           return 0;
+      case 'weight':   return weight;
+      case 'neck':     return neck;
+      case 'waist':    return waist;
+      case 'lowerAb':  return lowerAb;
+      case 'hip':      return hip;
+      case 'rightArm': return rightArm;
+      case 'leftArm':  return leftArm;
+      case 'rightLeg': return rightLeg;
+      case 'leftLeg':  return leftLeg;
+      default:         return 0;
     }
   }
 }

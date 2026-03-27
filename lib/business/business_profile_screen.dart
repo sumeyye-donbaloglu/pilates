@@ -292,8 +292,11 @@ class BusinessProfileScreen extends StatelessWidget {
                         ),
                       ),
 
-                      // Mesaj Gönder (sadece müşteriye)
+                      // Müşteriye özel butonlar
                       if (!isOwner) ...[
+                        const SizedBox(height: 10),
+                        // Üyelik isteği butonu
+                        _MembershipButton(businessId: businessId),
                         const SizedBox(height: 10),
                         SizedBox(
                           width: double.infinity,
@@ -427,6 +430,142 @@ class BusinessProfileScreen extends StatelessWidget {
       color: AppColors.surfaceTint,
       child: const Icon(Icons.store_rounded,
           color: AppColors.lavender, size: 40),
+    );
+  }
+}
+
+// ── Üyelik İsteği Butonu
+class _MembershipButton extends StatelessWidget {
+  final String businessId;
+  const _MembershipButton({required this.businessId});
+
+  Future<void> _sendRequest(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+    final customerName =
+        userDoc.data()?['name'] as String? ?? 'Müşteri';
+
+    await FirebaseFirestore.instance
+        .collection('membershipRequests')
+        .add({
+      'customerId':   user.uid,
+      'customerName': customerName,
+      'businessId':   businessId,
+      'status':       'pending',
+      'createdAt':    FieldValue.serverTimestamp(),
+    });
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Üyelik isteğin gönderildi!",
+            style: GoogleFonts.nunito(),
+          ),
+          backgroundColor: AppColors.accentTeal,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
+
+    // Önce üye mi kontrol et
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(businessId)
+          .collection('members')
+          .doc(uid)
+          .snapshots(),
+      builder: (context, memberSnap) {
+        final isMember = memberSnap.data?.exists == true;
+
+        if (isMember) {
+          return _StatusButton(
+            icon: Icons.verified_rounded,
+            label: "Üyesiniz ✓",
+            color: AppColors.accentTeal,
+            onTap: null,
+          );
+        }
+
+        // Bekleyen istek var mı?
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('membershipRequests')
+              .where('customerId', isEqualTo: uid)
+              .where('businessId', isEqualTo: businessId)
+              .where('status', isEqualTo: 'pending')
+              .snapshots(),
+          builder: (context, reqSnap) {
+            final isPending =
+                (reqSnap.data?.docs.isNotEmpty) == true;
+
+            if (isPending) {
+              return _StatusButton(
+                icon: Icons.hourglass_top_rounded,
+                label: "İstek Gönderildi — Bekleniyor",
+                color: AppColors.lavender,
+                onTap: null,
+              );
+            }
+
+            return _StatusButton(
+              icon: Icons.person_add_alt_1_rounded,
+              label: "Üyelik İsteği Gönder",
+              color: AppColors.primary,
+              onTap: () => _sendRequest(context),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _StatusButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback? onTap;
+  const _StatusButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        icon: Icon(icon),
+        label: Text(
+          label,
+          style: GoogleFonts.nunito(fontWeight: FontWeight.w700),
+        ),
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: onTap != null ? color : color.withOpacity(0.6),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
     );
   }
 }
