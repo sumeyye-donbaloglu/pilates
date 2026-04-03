@@ -478,20 +478,76 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
             ),
           ),
 
-        // Randevular listesi
-        if (appts.isNotEmpty)
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: appts.length,
-            itemBuilder: (context, i) => _appointmentCard(appts[i]),
-          ),
+        // Randevular — saate göre gruplu
+        if (appts.isNotEmpty) _groupedAppointmentList(appts),
       ],
     );
   }
 
-  Widget _appointmentCard(Map<String, dynamic> appt) {
+  // Saate göre grupla, erken → geç sırala
+  Widget _groupedAppointmentList(List<Map<String, dynamic>> appts) {
+    // time → liste
+    final Map<String, List<Map<String, dynamic>>> byTime = {};
+    for (final appt in appts) {
+      final t = appt['time'] as String? ?? '--:--';
+      byTime.putIfAbsent(t, () => []).add(appt);
+    }
+
+    final sortedTimes = byTime.keys.toList()..sort();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: sortedTimes.map((time) {
+          final group = byTime[time]!;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Saat başlığı ──────────────────────────────
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        time,
+                        style: GoogleFonts.nunito(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      "${group.length} kişi",
+                      style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                    const Expanded(child: Divider(indent: 10)),
+                  ],
+                ),
+              ),
+              // ── O saatteki müşteriler ─────────────────────
+              ...group.map((appt) => _appointmentCard(appt, showTime: false)),
+              const SizedBox(height: 4),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _appointmentCard(Map<String, dynamic> appt, {bool showTime = true}) {
     final customerId = appt['customerId'] as String? ?? '';
     final customerName = _nameCache[customerId] ?? 'Müşteri';
     final time = appt['time'] as String? ?? '--:--';
@@ -516,18 +572,17 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
       ),
       child: Row(
         children: [
-          // Time bubble
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
+          // Saat balonu — sadece tekil gösterimde
+          if (showTime) ...[
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Center(
+                child: Text(
                   time,
                   style: GoogleFonts.nunito(
                     color: Colors.white,
@@ -535,10 +590,10 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-          const SizedBox(width: 14),
+            const SizedBox(width: 14),
+          ],
           // Info
           Expanded(
             child: Column(
