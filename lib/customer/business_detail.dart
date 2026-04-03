@@ -510,14 +510,16 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           .collection('businesses')
           .doc(widget.businessId)
           .collection('packages')
-          .where('isActive', isEqualTo: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final packages = snapshot.data!.docs;
+        // isActive filtresi client-side
+        final packages = snapshot.data!.docs
+            .where((d) => (d.data() as Map)['isActive'] != false)
+            .toList();
 
         if (packages.isEmpty) {
           return Container(
