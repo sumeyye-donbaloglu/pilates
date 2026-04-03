@@ -185,6 +185,72 @@ class _RequestCard extends StatelessWidget {
   // ------------------------------------------------
   Future<void> _approveRequest(BuildContext context) async {
     final firestore = FirebaseFirestore.instance;
+    final customerId = data['customerId'] as String;
+    final date = data['date'] as String;
+    final customerName = data['customerName'] ?? 'Müşteri';
+
+    // 🔍 Aynı gün onaylı randevu var mı?
+    final existingSnap = await firestore
+        .collection('appointments')
+        .where('customerId', isEqualTo: customerId)
+        .where('businessId', isEqualTo: businessId)
+        .where('date', isEqualTo: date)
+        .get();
+
+    if (existingSnap.docs.isNotEmpty && context.mounted) {
+      final existingTime =
+          existingSnap.docs.first.data()['time'] as String? ?? '';
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.accentAmber.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.warning_amber_rounded,
+                    color: AppColors.accentAmber, size: 22),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  "Aynı Gün İkinci Randevu",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            "$customerName adlı müşterinin $date tarihinde saat $existingTime için zaten onaylanmış bir randevusu var.\n\nBu randevuyu da onaylamak istiyor musunuz?",
+            style: const TextStyle(fontSize: 14, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("Vazgeç",
+                  style: TextStyle(color: AppColors.textMuted)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text("Evet, Onayla"),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) return;
+    }
 
     await firestore.runTransaction((tx) async {
       final requestRef =
