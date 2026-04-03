@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'services/daily_slot_service.dart';
 import 'theme/app_colors.dart';
 
 class RandevuManagementScreen extends StatefulWidget {
@@ -26,8 +27,13 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
   // customerId → name cache
   final Map<String, String> _nameCache = {};
   bool _loadingMonth = false;
+  bool _generatingSlots = false;
+
+  // date string → slot bilgisi (toplam / dolu)
+  Map<String, Map<String, int>> _slotInfoByDate = {};
 
   final _db = FirebaseFirestore.instance;
+  final _slotService = DailySlotService();
 
   static const _weekdayLabels = ["Pt", "Sa", "Ça", "Pe", "Cu", "Ct", "Pz"];
   static const _monthNames = [
@@ -50,6 +56,7 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
   void initState() {
     super.initState();
     _loadMonth(_focusedMonth);
+    _loadMonthSlots(_focusedMonth);
   }
 
   // ─── DATA ─────────────────────────────────────────────────────────
@@ -104,6 +111,62 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
     }
   }
 
+  // Ayın slot özetini yükle (hangi günlerde slot var, kaçı dolu)
+  Future<void> _loadMonthSlots(DateTime month) async {
+    final start = "${month.year}-${month.month.toString().padLeft(2, '0')}-01";
+    final lastDay = DateTime(month.year, month.month + 1, 0).day;
+    final end = "${month.year}-${month.month.toString().padLeft(2, '0')}-${lastDay.toString().padLeft(2, '0')}";
+
+    final snap = await _db
+        .collection('businesses')
+        .doc(widget.businessId)
+        .collection('daily_slots')
+        .where('date', isGreaterThanOrEqualTo: start)
+        .where('date', isLessThanOrEqualTo: end)
+        .get();
+
+    final Map<String, Map<String, int>> info = {};
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      final date = data['date'] as String? ?? '';
+      final capacity = (data['capacity'] as int?) ?? 0;
+      final used = (data['usedCapacity'] as int?) ?? 0;
+      info[date] = {
+        'total': (info[date]?['total'] ?? 0) + capacity,
+        'used': (info[date]?['used'] ?? 0) + used,
+        'count': (info[date]?['count'] ?? 0) + 1,
+      };
+    }
+    if (mounted) setState(() => _slotInfoByDate = info);
+  }
+
+  // Seçili gün için slot oluştur
+  Future<void> _generateSlotsForSelectedDay() async {
+    setState(() => _generatingSlots = true);
+    try {
+      await _slotService.generateDailySlots(
+          widget.businessId, _dateStr(_selectedDay));
+      await _loadMonthSlots(_focusedMonth);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Slotlar oluşturuldu ✓"),
+          backgroundColor: AppColors.accentTeal,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll("Exception: ", "")),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _generatingSlots = false);
+    }
+  }
+
   List<Map<String, dynamic>> get _selectedDayAppointments {
     return _appointmentsByDate[_dateStr(_selectedDay)] ?? [];
   }
@@ -136,6 +199,7 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
                         DateTime(prev.year, prev.month, 1);
                   });
                   _loadMonth(prev);
+                  _loadMonthSlots(prev);
                 },
               ),
               Expanded(
@@ -162,6 +226,7 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
                         DateTime(next.year, next.month, 1);
                   });
                   _loadMonth(next);
+                  _loadMonthSlots(next);
                 },
               ),
             ],
@@ -294,6 +359,11 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
 
   Widget _buildDaySection() {
     final appts = _selectedDayAppointments;
+    final dayKey = _dateStr(_selectedDay);
+    final slotInfo = _slotInfoByDate[dayKey];
+    final hasSlots = slotInfo != null && (slotInfo['count'] ?? 0) > 0;
+    final totalSlots = slotInfo?['count'] ?? 0;
+    final usedSlots = appts.length;
     final dayLabel =
         "${_selectedDay.day} ${_monthNames[_selectedDay.month]} ${_selectedDay.year}";
 
@@ -314,42 +384,90 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
                   ),
                 ),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(
-                  color: appts.isEmpty
-                      ? AppColors.border
-                      : AppColors.accentTeal.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  appts.isEmpty
-                      ? "Randevu yok"
-                      : "${appts.length} randevu",
-                  style: GoogleFonts.nunito(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: appts.isEmpty
-                        ? AppColors.textMuted
-                        : AppColors.accentTeal,
+              if (hasSlots)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentTeal.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    "$usedSlots / $totalSlots dolu",
+                    style: GoogleFonts.nunito(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.accentTeal,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
-        if (appts.isEmpty)
+
+        // Slot yok → oluşturma butonu
+        if (!hasSlots)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: GestureDetector(
+              onTap: _generatingSlots ? null : _generateSlotsForSelectedDay,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.gradientStart, AppColors.gradientEnd],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: _generatingSlots
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2.5),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.add_circle_outline,
+                                color: Colors.white, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              "Bu Gün İçin Slot Oluştur",
+                              style: GoogleFonts.nunito(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+          ),
+
+        // Slot var ama randevu yok
+        if (hasSlots && appts.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
             child: Center(
               child: Column(
                 children: [
                   Icon(Icons.event_available_rounded,
-                      size: 48, color: AppColors.border),
-                  const SizedBox(height: 12),
+                      size: 44, color: AppColors.border),
+                  const SizedBox(height: 10),
                   Text(
-                    "Bu gün için randevu bulunmuyor",
+                    "$totalSlots slot hazır — henüz randevu yok",
                     style: GoogleFonts.nunito(
                       color: AppColors.textMuted,
                       fontSize: 14,
@@ -358,8 +476,10 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
                 ],
               ),
             ),
-          )
-        else
+          ),
+
+        // Randevular listesi
+        if (appts.isNotEmpty)
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
