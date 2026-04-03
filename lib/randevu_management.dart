@@ -66,11 +66,10 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
 
     setState(() => _loadingMonth = true);
 
+    // Composite index gerektirmemek için tarih filtresi Dart tarafında yapılıyor
     final snap = await _db
         .collection('appointments')
         .where('businessId', isEqualTo: widget.businessId)
-        .where('date', isGreaterThanOrEqualTo: start)
-        .where('date', isLessThanOrEqualTo: end)
         .get();
 
     final Map<String, List<Map<String, dynamic>>> grouped = {};
@@ -79,6 +78,8 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
     for (final doc in snap.docs) {
       final data = {...doc.data(), 'id': doc.id};
       final date = data['date'] as String? ?? '';
+      // Sadece bu ayın randevularını al
+      if (date.compareTo(start) < 0 || date.compareTo(end) > 0) continue;
       grouped.putIfAbsent(date, () => []).add(data);
       if (data['customerId'] != null) {
         customerIds.add(data['customerId'] as String);
