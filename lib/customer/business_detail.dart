@@ -25,7 +25,6 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
   bool loading = false;
   final String uid = FirebaseAuth.instance.currentUser!.uid;
 
-  // 14 günlük tarih listesi
   final List<DateTime> _dates = List.generate(
     14,
     (i) => DateTime.now().add(Duration(days: i)),
@@ -40,15 +39,12 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
   String get formattedDate =>
       "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
 
-  // ── Randevu talebi ──────────────────────────────────────────────────
-
   Future<void> requestSlot({
     required String slotId,
     required String time,
     required String endTime,
   }) async {
     if (loading) return;
-
     String lessonType = 'normal';
 
     final confirmed = await showModalBottomSheet<bool>(
@@ -68,7 +64,6 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
 
     if (confirmed != true) return;
-
     setState(() => loading = true);
     final firestore = FirebaseFirestore.instance;
 
@@ -81,9 +76,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           .limit(1)
           .get();
 
-      if (existing.docs.isNotEmpty) {
-        throw Exception("Bu seans için bekleyen talebin var.");
-      }
+      if (existing.docs.isNotEmpty) throw Exception("Bu seans için bekleyen talebin var.");
 
       final userDoc = await firestore.collection('users').doc(uid).get();
       final customerName = userDoc.data()?['name'] ?? 'Müşteri';
@@ -112,19 +105,13 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Talep gönderildi ✓"),
-            backgroundColor: AppColors.accentTeal,
-          ),
+          const SnackBar(content: Text("Talep gönderildi ✓"), backgroundColor: AppColors.accentTeal),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll("Exception: ", "")),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(e.toString().replaceAll("Exception: ", "")), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -132,46 +119,172 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     }
   }
 
-  // ── Yatay tarih strip ───────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F7FC),
+      body: Column(
+        children: [
+          _buildHeader(),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  _buildDateStrip(),
+                  const SizedBox(height: 24),
+                  _buildSectionLabel("Müsait Seanslar"),
+                  const SizedBox(height: 10),
+                  _buildSlotList(),
+                  const SizedBox(height: 28),
+                  _buildSectionLabel("Paketler"),
+                  const SizedBox(height: 10),
+                  _buildPackageList(),
+                  const SizedBox(height: 40),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  Widget _dateStrip() {
+  // ── HEADER ──────────────────────────────────────────────────────────
+
+  Widget _buildHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF5B4FCF), Color(0xFF7C3AED)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Stack(
+          children: [
+            // Dekoratif daireler
+            Positioned(
+              right: -20,
+              top: -10,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.06),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 40,
+              top: 30,
+              child: Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.06),
+                ),
+              ),
+            ),
+            // İçerik
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Geri butonu
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.name,
+                          style: GoogleFonts.playfairDisplay(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (widget.location.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on_rounded, color: Colors.white54, size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                widget.location,
+                                style: GoogleFonts.nunito(color: Colors.white60, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── TARİH STRIP ─────────────────────────────────────────────────────
+
+  Widget _buildDateStrip() {
     return SizedBox(
-      height: 76,
+      height: 80,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         itemCount: _dates.length,
         itemBuilder: (context, i) {
           final date = _dates[i];
-          final isSelected = formattedDate ==
+          final key =
               "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-          final isToday = i == 0;
+          final isSelected = formattedDate == key;
 
           return GestureDetector(
             onTap: () => setState(() => selectedDate = date),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
               margin: const EdgeInsets.only(right: 10),
-              width: 52,
+              width: 56,
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isSelected
-                      ? AppColors.primary
-                      : isToday
-                          ? AppColors.primary.withOpacity(0.3)
-                          : AppColors.border,
-                ),
+                color: isSelected ? const Color(0xFF7C3AED) : Colors.white,
+                borderRadius: BorderRadius.circular(18),
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                          color: const Color(0xFF7C3AED).withOpacity(0.35),
+                          blurRadius: 14,
+                          offset: const Offset(0, 5),
                         )
                       ]
-                    : null,
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        )
+                      ],
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -188,12 +301,11 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   Text(
                     "${date.day}",
                     style: GoogleFonts.nunito(
-                      fontSize: 18,
+                      fontSize: 20,
                       fontWeight: FontWeight.w800,
                       color: isSelected ? Colors.white : AppColors.deepIndigo,
                     ),
                   ),
-                  const SizedBox(height: 2),
                   Text(
                     _monthShort[date.month],
                     style: GoogleFonts.nunito(
@@ -210,9 +322,25 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  // ── Slot listesi ────────────────────────────────────────────────────
+  // ── SECTION LABEL ───────────────────────────────────────────────────
 
-  Widget _slotList() {
+  Widget _buildSectionLabel(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Text(
+        title,
+        style: GoogleFonts.nunito(
+          fontSize: 17,
+          fontWeight: FontWeight.w800,
+          color: AppColors.deepIndigo,
+        ),
+      ),
+    );
+  }
+
+  // ── SLOT LİSTESİ ────────────────────────────────────────────────────
+
+  Widget _buildSlotList() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('businesses')
@@ -223,7 +351,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
+            padding: EdgeInsets.symmetric(vertical: 32),
             child: Center(child: CircularProgressIndicator()),
           );
         }
@@ -231,35 +359,61 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
         final slots = snapshot.data!.docs;
 
         if (slots.isEmpty) {
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            padding: const EdgeInsets.symmetric(vertical: 28),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              children: [
-                Icon(Icons.event_busy_rounded, size: 40, color: AppColors.border),
-                const SizedBox(height: 10),
-                Text(
-                  "Bu tarih için seans açılmamış",
-                  style: GoogleFonts.nunito(
-                    fontSize: 14,
-                    color: AppColors.textMuted,
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  )
+                ],
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F0FF),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.calendar_today_outlined,
+                        size: 28, color: Color(0xFF7C3AED)),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Text(
+                    "Bu tarih için seans açılmamış",
+                    style: GoogleFonts.nunito(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Başka bir gün seçmeyi deneyin",
+                    style: GoogleFonts.nunito(
+                      fontSize: 12,
+                      color: AppColors.textMuted.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }
 
         final sorted = [...slots]
           ..sort((a, b) {
-            final aTime = (a.data() as Map)['time'] as String? ?? '';
-            final bTime = (b.data() as Map)['time'] as String? ?? '';
-            return aTime.compareTo(bTime);
+            final aT = (a.data() as Map)['time'] as String? ?? '';
+            final bT = (b.data() as Map)['time'] as String? ?? '';
+            return aT.compareTo(bT);
           });
 
         return Padding(
@@ -289,20 +443,22 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   final isFull = used >= capacity;
                   final isDisabled = hasPending || isFull;
 
-                  Color statusColor = AppColors.accentTeal;
-                  String statusLabel = "Müsait";
+                  Color badgeColor = const Color(0xFF10B981);
+                  String badgeLabel = "Müsait";
+                  IconData badgeIcon = Icons.check_circle_outline_rounded;
+
                   if (hasPending) {
-                    statusColor = AppColors.accentAmber;
-                    statusLabel = "Talep Gönderildi";
+                    badgeColor = const Color(0xFFF59E0B);
+                    badgeLabel = "Talep Gönderildi";
+                    badgeIcon = Icons.hourglass_top_rounded;
                   } else if (isFull) {
-                    statusColor = AppColors.accentPink;
-                    statusLabel = "Dolu";
+                    badgeColor = const Color(0xFFEF4444);
+                    badgeLabel = "Dolu";
+                    badgeIcon = Icons.block_rounded;
                   } else if (slotType == 'demo') {
-                    statusColor = AppColors.purple;
-                    statusLabel = "Demo";
-                  } else if (slotType == 'normal') {
-                    statusColor = AppColors.accentTeal;
-                    statusLabel = "Normal";
+                    badgeColor = const Color(0xFF8B5CF6);
+                    badgeLabel = "Demo";
+                    badgeIcon = Icons.play_circle_outline_rounded;
                   }
 
                   return GestureDetector(
@@ -315,78 +471,104 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                             ),
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                       decoration: BoxDecoration(
-                        color: isDisabled
-                            ? AppColors.background
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(14),
+                        color: isDisabled ? const Color(0xFFF9F9F9) : Colors.white,
+                        borderRadius: BorderRadius.circular(18),
                         border: Border.all(
                           color: isDisabled
-                              ? AppColors.border.withOpacity(0.5)
-                              : AppColors.border,
+                              ? Colors.grey.withOpacity(0.15)
+                              : const Color(0xFFEDE9FE),
+                          width: 1.5,
                         ),
+                        boxShadow: isDisabled
+                            ? null
+                            : [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                )
+                              ],
                       ),
                       child: Row(
                         children: [
-                          // Saat
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                slot['time'] as String,
-                                style: GoogleFonts.nunito(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  color: isDisabled
-                                      ? AppColors.textMuted
-                                      : AppColors.deepIndigo,
+                          // Saat kutusu
+                          Container(
+                            width: 60,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDisabled
+                                  ? Colors.grey.withOpacity(0.08)
+                                  : const Color(0xFFF3F0FF),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  slot['time'] as String,
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDisabled
+                                        ? AppColors.textMuted
+                                        : const Color(0xFF7C3AED),
+                                  ),
                                 ),
-                              ),
+                                Text(
+                                  slot['endTime'] as String,
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 11,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          // Badge
+                          Row(
+                            children: [
+                              Icon(badgeIcon, size: 14, color: badgeColor),
+                              const SizedBox(width: 5),
                               Text(
-                                slot['endTime'] as String,
+                                badgeLabel,
                                 style: GoogleFonts.nunito(
-                                  fontSize: 12,
-                                  color: AppColors.textMuted,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: badgeColor,
                                 ),
                               ),
                             ],
                           ),
                           const Spacer(),
-                          // Durum badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: statusColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              statusLabel,
-                              style: GoogleFonts.nunito(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: statusColor,
-                              ),
-                            ),
-                          ),
-                          if (!isDisabled) ...[
-                            const SizedBox(width: 10),
+                          // Randevu al butonu
+                          if (!isDisabled)
                             Container(
-                              width: 32,
-                              height: 32,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 7),
                               decoration: BoxDecoration(
-                                color: AppColors.primary,
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF7C3AED), Color(0xFF5B4FCF)],
+                                ),
                                 borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF7C3AED).withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  )
+                                ],
                               ),
-                              child: const Icon(
-                                Icons.add_rounded,
-                                color: Colors.white,
-                                size: 18,
+                              child: Text(
+                                "Talep",
+                                style: GoogleFonts.nunito(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
-                          ],
                         ],
                       ),
                     ),
@@ -400,9 +582,9 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  // ── Paket listesi ───────────────────────────────────────────────────
+  // ── PAKET LİSTESİ ───────────────────────────────────────────────────
 
-  Widget _packageList() {
+  Widget _buildPackageList() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('businesses')
@@ -426,17 +608,18 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)
+                ],
               ),
               child: Text(
                 "Bu salon henüz paket tanımlamamış",
                 textAlign: TextAlign.center,
-                style: GoogleFonts.nunito(
-                    fontSize: 14, color: AppColors.textMuted),
+                style: GoogleFonts.nunito(fontSize: 14, color: AppColors.textMuted),
               ),
             ),
           );
@@ -447,10 +630,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           child: Column(
             children: packages.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
-              return _PackageCard(
-                data: data,
-                onBuy: () => _showBuyDialog(data),
-              );
+              return _PackageCard(data: data, onBuy: () => _showBuySheet(data));
             }).toList(),
           ),
         );
@@ -458,7 +638,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  void _showBuyDialog(Map<String, dynamic> packageData) {
+  void _showBuySheet(Map<String, dynamic> pkg) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -476,50 +656,36 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           children: [
             Center(
               child: Container(
-                width: 40,
-                height: 4,
+                width: 40, height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2)),
               ),
             ),
             const SizedBox(height: 20),
-            Text(
-              packageData['name'] ?? 'Paket',
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.deepIndigo,
-              ),
-            ),
+            Text(pkg['name'] ?? 'Paket',
+                style: GoogleFonts.playfairDisplay(
+                    fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.deepIndigo)),
             const SizedBox(height: 6),
             Text(
-              "₺${(packageData['price'] as num?)?.toStringAsFixed(0) ?? '0'}  ·  "
-              "${packageData['sessionCount']} seans  ·  "
-              "${packageData['validityDays']} gün geçerli",
-              style: GoogleFonts.nunito(fontSize: 14, color: AppColors.textMuted),
+              "₺${(pkg['price'] as num?)?.toStringAsFixed(0) ?? '0'}  ·  ${pkg['sessionCount']} seans  ·  ${pkg['validityDays']} gün geçerli",
+              style: GoogleFonts.nunito(fontSize: 13, color: AppColors.textMuted),
             ),
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.surfaceTint,
-                borderRadius: BorderRadius.circular(12),
-              ),
+                  color: const Color(0xFFF3F0FF),
+                  borderRadius: BorderRadius.circular(12)),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded,
-                      size: 16, color: AppColors.primary),
+                  const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF7C3AED)),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       "Ödeme sistemi yakında aktif olacak. Satın almak için salonla iletişime geçebilirsiniz.",
                       style: GoogleFonts.nunito(
-                        fontSize: 12,
-                        color: AppColors.purple,
-                        height: 1.5,
-                      ),
+                          fontSize: 12, color: const Color(0xFF5B21B6), height: 1.5),
                     ),
                   ),
                 ],
@@ -531,157 +697,19 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
               height: 50,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: const Color(0xFF7C3AED),
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   elevation: 0,
                 ),
                 icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                label: Text(
-                  "Salonla İletişime Geç",
-                  style: GoogleFonts.nunito(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
+                label: Text("Salonla İletişime Geç",
+                    style: GoogleFonts.nunito(fontWeight: FontWeight.bold, fontSize: 15)),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // ── Section başlığı ─────────────────────────────────────────────────
-
-  Widget _sectionTitle(String title, {Widget? trailing}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.nunito(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppColors.deepIndigo,
-            ),
-          ),
-          if (trailing != null) ...[
-            const Spacer(),
-            trailing,
-          ],
-        ],
-      ),
-    );
-  }
-
-  // ── Build ───────────────────────────────────────────────────────────
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          // ── Gradient header
-          SliverAppBar(
-            expandedHeight: 140,
-            pinned: true,
-            backgroundColor: AppColors.primary,
-            iconTheme: const IconThemeData(color: Colors.white),
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.gradientStart, AppColors.gradientEnd],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.name,
-                          style: GoogleFonts.playfairDisplay(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (widget.location.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on_rounded,
-                                  color: Colors.white54, size: 14),
-                              const SizedBox(width: 4),
-                              Text(
-                                widget.location,
-                                style: GoogleFonts.nunito(
-                                  color: Colors.white60,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // ── İçerik
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-
-                // Tarih strip
-                _sectionTitle("Tarih Seç"),
-                const SizedBox(height: 12),
-                _dateStrip(),
-
-                const SizedBox(height: 24),
-
-                // Seanslar
-                _sectionTitle(
-                  "Müsait Seanslar",
-                  trailing: loading
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                _slotList(),
-
-                const SizedBox(height: 28),
-
-                // Paketler
-                _sectionTitle("Paketler"),
-                const SizedBox(height: 12),
-                _packageList(),
-
-                const SizedBox(height: 32),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -702,92 +730,115 @@ class _PackageCard extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            // İkon
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
               ),
-              borderRadius: BorderRadius.circular(12),
+              child: const Icon(Icons.card_giftcard_rounded,
+                  color: Colors.white, size: 24),
             ),
-            child: const Icon(Icons.card_giftcard_rounded,
-                color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(width: 14),
+            // Bilgi
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data['name'] ?? '',
+                    style: GoogleFonts.nunito(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.deepIndigo,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      _chip("$sessionCount seans", const Color(0xFF7C3AED)),
+                      const SizedBox(width: 6),
+                      _chip("$validityDays gün", const Color(0xFF0EA5E9)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Fiyat + buton
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  data['name'] ?? '',
+                  "₺${price.toStringAsFixed(0)}",
                   style: GoogleFonts.nunito(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.deepIndigo,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  "$sessionCount seans  ·  $validityDays gün",
-                  style: GoogleFonts.nunito(
-                    fontSize: 12,
-                    color: AppColors.textMuted,
+                const SizedBox(height: 6),
+                GestureDetector(
+                  onTap: onBuy,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF7C3AED),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      "Satın Al",
+                      style: GoogleFonts.nunito(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                "₺${price.toStringAsFixed(0)}",
-                style: GoogleFonts.nunito(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.deepIndigo,
-                ),
-              ),
-              const SizedBox(height: 5),
-              GestureDetector(
-                onTap: onBuy,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    "Satın Al",
-                    style: GoogleFonts.nunito(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.nunito(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }
@@ -820,8 +871,7 @@ class _RequestSheetState extends State<_RequestSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(
-          24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -832,38 +882,23 @@ class _RequestSheetState extends State<_RequestSheet> {
         children: [
           Center(
             child: Container(
-              width: 40,
-              height: 4,
+              width: 40, height: 4,
               decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
+                  color: AppColors.border, borderRadius: BorderRadius.circular(2)),
             ),
           ),
           const SizedBox(height: 20),
-          Text(
-            "Randevu Talebi",
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.deepIndigo,
-            ),
-          ),
+          Text("Randevu Talebi",
+              style: GoogleFonts.playfairDisplay(
+                  fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.deepIndigo)),
           const SizedBox(height: 6),
-          Text(
-            "${widget.date}  ·  ${widget.time} – ${widget.endTime}",
-            style: GoogleFonts.nunito(fontSize: 14, color: AppColors.textMuted),
-          ),
+          Text("${widget.date}  ·  ${widget.time} – ${widget.endTime}",
+              style: GoogleFonts.nunito(fontSize: 13, color: AppColors.textMuted)),
           const SizedBox(height: 24),
-          Text(
-            "Ders Türü",
-            style: GoogleFonts.nunito(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMuted,
-            ),
-          ),
-          const SizedBox(height: 8),
+          Text("Ders Türü",
+              style: GoogleFonts.nunito(
+                  fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textMuted)),
+          const SizedBox(height: 10),
           _option("normal", "Normal Ders", Icons.fitness_center_rounded),
           const SizedBox(height: 8),
           _option("demo", "Demo Ders", Icons.play_circle_outline_rounded),
@@ -876,17 +911,12 @@ class _RequestSheetState extends State<_RequestSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                        color: const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(14)),
                     child: Center(
-                      child: Text(
-                        "Vazgeç",
-                        style: GoogleFonts.nunito(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
+                      child: Text("Vazgeç",
+                          style: GoogleFonts.nunito(
+                              fontWeight: FontWeight.w700, color: AppColors.textMuted)),
                     ),
                   ),
                 ),
@@ -900,26 +930,20 @@ class _RequestSheetState extends State<_RequestSheet> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [AppColors.gradientStart, AppColors.gradientEnd],
-                      ),
+                          colors: [Color(0xFF7C3AED), Color(0xFF5B4FCF)]),
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.3),
-                          blurRadius: 8,
+                          color: const Color(0xFF7C3AED).withOpacity(0.3),
+                          blurRadius: 10,
                           offset: const Offset(0, 4),
-                        ),
+                        )
                       ],
                     ),
                     child: Center(
-                      child: Text(
-                        "Talep Gönder",
-                        style: GoogleFonts.nunito(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
+                      child: Text("Talep Gönder",
+                          style: GoogleFonts.nunito(
+                              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                     ),
                   ),
                 ),
@@ -935,34 +959,32 @@ class _RequestSheetState extends State<_RequestSheet> {
     final selected = _lessonType == value;
     return GestureDetector(
       onTap: () => setState(() => _lessonType = value),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? AppColors.surfaceTint : Colors.white,
+          color: selected ? const Color(0xFFF3F0FF) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
+            color: selected ? const Color(0xFF7C3AED) : AppColors.border,
             width: selected ? 1.5 : 1,
           ),
         ),
         child: Row(
           children: [
-            Icon(icon,
-                size: 20,
-                color: selected ? AppColors.primary : AppColors.textMuted),
+            Icon(icon, size: 20,
+                color: selected ? const Color(0xFF7C3AED) : AppColors.textMuted),
             const SizedBox(width: 10),
-            Text(
-              label,
-              style: GoogleFonts.nunito(
-                fontSize: 14,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? AppColors.primary : AppColors.deepIndigo,
-              ),
-            ),
+            Text(label,
+                style: GoogleFonts.nunito(
+                  fontSize: 14,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected ? const Color(0xFF7C3AED) : AppColors.deepIndigo,
+                )),
             const Spacer(),
             if (selected)
               const Icon(Icons.check_circle_rounded,
-                  color: AppColors.primary, size: 18),
+                  color: Color(0xFF7C3AED), size: 18),
           ],
         ),
       ),
