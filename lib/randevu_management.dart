@@ -1,6 +1,8 @@
-import 'theme/app_colors.dart';
 import 'package:flutter/material.dart';
-import 'services/daily_slot_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import 'theme/app_colors.dart';
 
 class RandevuManagementScreen extends StatefulWidget {
   final String businessId;
@@ -16,32 +18,19 @@ class RandevuManagementScreen extends StatefulWidget {
 }
 
 class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
-  DateTime selectedDate = DateTime.now();
-  bool loading = false;
-  List<Map<String, dynamic>> slots = [];
+  DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  DateTime _selectedDay = DateTime.now();
 
-  final DailySlotService _service = DailySlotService();
+  // date string (yyyy-MM-dd) → list of appointments
+  Map<String, List<Map<String, dynamic>>> _appointmentsByDate = {};
+  // customerId → name cache
+  final Map<String, String> _nameCache = {};
+  bool _loadingMonth = false;
 
-  @override
-  void initState() {
-    super.initState();
-    loadSlots();
-  }
+  final _db = FirebaseFirestore.instance;
 
-  // ------------------------------------------------
-  // TÜRKÇE TARİH SABİTLERİ
-  // ------------------------------------------------
-  final List<String> _weekdays = [
-    "Pazartesi",
-    "Salı",
-    "Çarşamba",
-    "Perşembe",
-    "Cuma",
-    "Cumartesi",
-    "Pazar",
-  ];
-
-  final List<String> _months = [
+  static const _weekdayLabels = ["Pt", "Sa", "Ça", "Pe", "Cu", "Ct", "Pz"];
+  static const _monthNames = [
     "",
     "Ocak",
     "Şubat",
@@ -57,286 +46,535 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
     "Aralık",
   ];
 
-  String get formattedDate =>
-      "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
-
-  // ------------------------------------------------
-  // SLOT YÜKLE
-  // ------------------------------------------------
-  Future<void> loadSlots() async {
-    setState(() => loading = true);
-    try {
-      final result =
-          await _service.getSlotsForDay(widget.businessId, formattedDate);
-      setState(() => slots = result);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Slotlar yüklenemedi: $e"),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() => loading = false);
-    }
-  }
-
-  // ------------------------------------------------
-  // SLOT OLUŞTUR
-  // ------------------------------------------------
-  Future<void> generateSlots() async {
-    setState(() => loading = true);
-    try {
-      await _service.generateDailySlots(
-        widget.businessId,
-        formattedDate,
-      );
-      await loadSlots();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll("Exception: ", "")),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() => loading = false);
-    }
-  }
-
-  // ------------------------------------------------
-  // UI
-  // ------------------------------------------------
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text("Randevu Yönetimi"),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
+  void initState() {
+    super.initState();
+    _loadMonth(_focusedMonth);
+  }
+
+  // ─── DATA ─────────────────────────────────────────────────────────
+
+  String _dateStr(DateTime d) =>
+      "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+
+  Future<void> _loadMonth(DateTime month) async {
+    final start =
+        "${month.year}-${month.month.toString().padLeft(2, '0')}-01";
+    final lastDay = DateTime(month.year, month.month + 1, 0).day;
+    final end =
+        "${month.year}-${month.month.toString().padLeft(2, '0')}-${lastDay.toString().padLeft(2, '0')}";
+
+    setState(() => _loadingMonth = true);
+
+    final snap = await _db
+        .collection('appointments')
+        .where('businessId', isEqualTo: widget.businessId)
+        .where('date', isGreaterThanOrEqualTo: start)
+        .where('date', isLessThanOrEqualTo: end)
+        .get();
+
+    final Map<String, List<Map<String, dynamic>>> grouped = {};
+    final Set<String> customerIds = {};
+
+    for (final doc in snap.docs) {
+      final data = {...doc.data(), 'id': doc.id};
+      final date = data['date'] as String? ?? '';
+      grouped.putIfAbsent(date, () => []).add(data);
+      if (data['customerId'] != null) {
+        customerIds.add(data['customerId'] as String);
+      }
+    }
+
+    // fetch missing names
+    for (final cid in customerIds) {
+      if (!_nameCache.containsKey(cid)) {
+        final userDoc =
+            await _db.collection('users').doc(cid).get();
+        _nameCache[cid] =
+            (userDoc.data()?['name'] as String?) ?? 'Müşteri';
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _appointmentsByDate = grouped;
+        _loadingMonth = false;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> get _selectedDayAppointments {
+    return _appointmentsByDate[_dateStr(_selectedDay)] ?? [];
+  }
+
+  // ─── CALENDAR ─────────────────────────────────────────────────────
+
+  Widget _buildCalendar() {
+    // First weekday of month (1=Mon…7=Sun → 0-indexed offset)
+    final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+    final offset = (firstDay.weekday - 1); // 0=Mon
+    final daysInMonth =
+        DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
+    final today = DateTime.now();
+
+    return Column(
+      children: [
+        // Month navigation
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            children: [
+              _monthNavButton(
+                icon: Icons.chevron_left_rounded,
+                onTap: () {
+                  final prev = DateTime(
+                      _focusedMonth.year, _focusedMonth.month - 1);
+                  setState(() {
+                    _focusedMonth = prev;
+                    _selectedDay =
+                        DateTime(prev.year, prev.month, 1);
+                  });
+                  _loadMonth(prev);
+                },
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    "${_monthNames[_focusedMonth.month].toUpperCase()}  ${_focusedMonth.year}",
+                    style: GoogleFonts.nunito(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.deepIndigo,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ),
+              _monthNavButton(
+                icon: Icons.chevron_right_rounded,
+                onTap: () {
+                  final next = DateTime(
+                      _focusedMonth.year, _focusedMonth.month + 1);
+                  setState(() {
+                    _focusedMonth = next;
+                    _selectedDay =
+                        DateTime(next.year, next.month, 1);
+                  });
+                  _loadMonth(next);
+                },
+              ),
+            ],
+          ),
+        ),
+
+        // Day-of-week header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: _weekdayLabels
+                .map((d) => Expanded(
+                      child: Center(
+                        child: Text(
+                          d,
+                          style: GoogleFonts.nunito(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ),
+                    ))
+                .toList(),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        // Grid
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: _loadingMonth
+              ? const SizedBox(
+                  height: 180,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              : GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    childAspectRatio: 1,
+                  ),
+                  itemCount: offset + daysInMonth,
+                  itemBuilder: (context, index) {
+                    if (index < offset) return const SizedBox();
+                    final day = index - offset + 1;
+                    final date = DateTime(
+                        _focusedMonth.year, _focusedMonth.month, day);
+                    final dateKey = _dateStr(date);
+                    final hasAppointments =
+                        (_appointmentsByDate[dateKey]?.isNotEmpty ?? false);
+                    final isSelected =
+                        _dateStr(date) == _dateStr(_selectedDay);
+                    final isToday = _dateStr(date) == _dateStr(today);
+
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedDay = date),
+                      child: Container(
+                        margin: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppColors.primary
+                              : isToday
+                                  ? AppColors.surfaceTint
+                                  : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Text(
+                              "$day",
+                              style: GoogleFonts.nunito(
+                                fontSize: 14,
+                                fontWeight: isSelected || isToday
+                                    ? FontWeight.w800
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? Colors.white
+                                    : isToday
+                                        ? AppColors.primary
+                                        : AppColors.deepIndigo,
+                              ),
+                            ),
+                            if (hasAppointments && !isSelected)
+                              Positioned(
+                                bottom: 3,
+                                child: Container(
+                                  width: 5,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? Colors.white70
+                                        : AppColors.accentPink,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _monthNavButton(
+      {required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceTint,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: AppColors.primary, size: 22),
       ),
-      body: Column(
+    );
+  }
+
+  // ─── DAY APPOINTMENTS ─────────────────────────────────────────────
+
+  Widget _buildDaySection() {
+    final appts = _selectedDayAppointments;
+    final dayLabel =
+        "${_selectedDay.day} ${_monthNames[_selectedDay.month]} ${_selectedDay.year}";
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  dayLabel,
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.deepIndigo,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: appts.isEmpty
+                      ? AppColors.border
+                      : AppColors.accentTeal.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  appts.isEmpty
+                      ? "Randevu yok"
+                      : "${appts.length} randevu",
+                  style: GoogleFonts.nunito(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: appts.isEmpty
+                        ? AppColors.textMuted
+                        : AppColors.accentTeal,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (appts.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(Icons.event_available_rounded,
+                      size: 48, color: AppColors.border),
+                  const SizedBox(height: 12),
+                  Text(
+                    "Bu gün için randevu bulunmuyor",
+                    style: GoogleFonts.nunito(
+                      color: AppColors.textMuted,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: appts.length,
+            itemBuilder: (context, i) => _appointmentCard(appts[i]),
+          ),
+      ],
+    );
+  }
+
+  Widget _appointmentCard(Map<String, dynamic> appt) {
+    final customerId = appt['customerId'] as String? ?? '';
+    final customerName = _nameCache[customerId] ?? 'Müşteri';
+    final time = appt['time'] as String? ?? '--:--';
+    final lessonType = appt['lessonType'] as String? ?? '';
+    final lessonLabel = _lessonLabel(lessonType);
+    final lessonColor = _lessonColor(lessonType);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
         children: [
-          const SizedBox(height: 14),
-          _premiumDateHeader(),
-          const SizedBox(height: 14),
-          if (loading)
-            const Expanded(
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (slots.isEmpty)
-            _emptySlotCard()
-          else
-            Expanded(child: _slotList()),
+          // Time bubble
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  time,
+                  style: GoogleFonts.nunito(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  customerName,
+                  style: GoogleFonts.nunito(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.deepIndigo,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.person_outline_rounded,
+                        size: 13, color: AppColors.textMuted),
+                    const SizedBox(width: 4),
+                    Text(
+                      customerId.length > 8
+                          ? customerId.substring(0, 8) + '...'
+                          : customerId,
+                      style: GoogleFonts.nunito(
+                          fontSize: 12, color: AppColors.textLight),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Lesson badge
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: lessonColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              lessonLabel,
+              style: GoogleFonts.nunito(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: lessonColor,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // ------------------------------------------------
-  // 🌸 PREMIUM TARİH HEADER
-  // ------------------------------------------------
-  Widget _premiumDateHeader() {
-    final weekday = _weekdays[selectedDate.weekday - 1];
-    final monthYear =
-        "${_months[selectedDate.month].toUpperCase()} ${selectedDate.year}";
-
-    return GestureDetector(
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: selectedDate,
-          firstDate: DateTime(2024),
-          lastDate: DateTime(2030),
-          builder: (context, child) {
-            return Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.light(
-                  primary: AppColors.primary,
-                ),
-              ),
-              child: child!,
-            );
-          },
-        );
-        if (picked != null) {
-          setState(() => selectedDate = picked);
-          await loadSlots();
-        }
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // GÜN NUMARASI
-            Container(
-              width: 62,
-              height: 62,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Center(
-                child: Text(
-                  selectedDate.day.toString(),
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(width: 18),
-
-            // AY + YIL / GÜN
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  monthYear,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.deepIndigo,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  weekday,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
-
-            const Spacer(),
-
-            const Icon(Icons.calendar_month,
-                color: AppColors.primary),
-          ],
-        ),
-      ),
-    );
+  String _lessonLabel(String type) {
+    switch (type) {
+      case 'demo':
+        return 'Demo';
+      case 'normal':
+        return 'Normal';
+      default:
+        return type.isNotEmpty ? type : 'Seans';
+    }
   }
 
-  // ------------------------------------------------
-  // SLOT YOKSA
-  // ------------------------------------------------
-  Widget _emptySlotCard() {
-    return Expanded(
-      child: Center(
-        child: GestureDetector(
-          onTap: loading ? null : generateSlots,
-          child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 30, vertical: 18),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  AppColors.primary,
-                  AppColors.textMuted,
+  Color _lessonColor(String type) {
+    switch (type) {
+      case 'demo':
+        return AppColors.accentAmber;
+      case 'normal':
+        return AppColors.accentTeal;
+      default:
+        return AppColors.primary;
+    }
+  }
+
+  // ─── BUILD ────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(
+          "Randevular",
+          style: GoogleFonts.playfairDisplay(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppColors.primary,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Calendar card
+            Container(
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.07),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
                 ],
               ),
-              borderRadius: BorderRadius.circular(22),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.35),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: const Text(
-              "Bu Gün İçin Slot Oluştur",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+              child: Column(
+                children: [
+                  _buildCalendar(),
+                  const SizedBox(height: 12),
+                ],
               ),
             ),
-          ),
+
+            // Legend
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: AppColors.accentPink,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    "Randevu olan günler",
+                    style: GoogleFonts.nunito(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // Divider
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              height: 1,
+              color: AppColors.border,
+            ),
+
+            // Day appointments
+            _buildDaySection(),
+
+            const SizedBox(height: 32),
+          ],
         ),
       ),
-    );
-  }
-
-  // ------------------------------------------------
-  // SLOT LİSTESİ – AÇIKLAMALI
-  // ------------------------------------------------
-  Widget _slotList() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: slots.length,
-      itemBuilder: (context, index) {
-        final slot = slots[index];
-
-        final time = slot['time'];
-        final endTime = slot['endTime'];
-        final capacity = slot['capacity'];
-        final used = slot['usedCapacity'];
-
-        final remaining = capacity - used;
-        final isFull = remaining <= 0;
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: isFull
-                  ? const Color(0xFFFFC1C1)
-                  : const Color(0xFFE8CFCF),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "$time – $endTime",
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.deepIndigo,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                isFull
-                    ? "Bu saat dilimi dolu"
-                    : "$remaining reformer müsait • Toplam $capacity cihaz",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: isFull
-                      ? const Color(0xFFE57373)
-                      : const Color(0xFF7BCFA1),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

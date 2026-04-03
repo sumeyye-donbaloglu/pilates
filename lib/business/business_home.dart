@@ -4,14 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../firestore_paths.dart';
-import '../reformer_management.dart';
 import '../randevu_management.dart';
 import 'business_settings.dart';
 import '../welcome.dart';
 import 'business_profile_screen.dart';
 import 'business_requests.dart';
 import 'members_screen.dart';
-import 'membership_requests_screen.dart';
 import '../customer/notifications.dart';
 import '../screen/chat/chat_list_screen.dart';
 import '../theme/app_colors.dart';
@@ -249,21 +247,6 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const MembersScreen(),
-                          ),
-                        ),
-                      ),
-                      _MenuCard(
-                        title: "Reformer",
-                        icon: Icons.fitness_center_rounded,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFFBBF24), Color(0xFFF472B6)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ReformerManagementScreen(),
                           ),
                         ),
                       ),

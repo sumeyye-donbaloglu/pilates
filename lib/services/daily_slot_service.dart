@@ -17,13 +17,18 @@ class DailySlotService {
     final settings =
         Map<String, dynamic>.from(data['settings'] ?? {});
 
-    final reformersSnap =
-        await businessRef.collection('reformers').get();
+    // Önce settings'teki reformerCount'u dene
+    int capacity = (settings['reformerCount'] as int?) ?? 0;
 
-    final availableCount = reformersSnap.docs.where((doc) {
-      final reformer = Map<String, dynamic>.from(doc.data());
-      return reformer['status'] == 'available';
-    }).length;
+    // Fallback: reformers koleksiyonundan say
+    if (capacity == 0) {
+      final reformersSnap =
+          await businessRef.collection('reformers').get();
+      capacity = reformersSnap.docs.where((doc) {
+        final reformer = Map<String, dynamic>.from(doc.data());
+        return reformer['status'] == 'available';
+      }).length;
+    }
 
     return {
       'weekdayStart': settings['weekday']?['start'] ?? '08:00',
@@ -32,7 +37,7 @@ class DailySlotService {
       'weekendEnd': settings['weekend']?['end'] ?? '22:00',
       'sessionDuration': settings['sessionDuration'] ?? 50,
       'breakDuration': settings['breakDuration'] ?? 10,
-      'capacity': availableCount,
+      'capacity': capacity,
     };
   }
 
