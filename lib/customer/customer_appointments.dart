@@ -127,6 +127,10 @@ class _CustomerAppointmentsScreenState
     if (confirmed != true) return;
 
     try {
+      // Müşteri adını önceden al (bildirimde kullanmak için)
+      final userDoc = await firestore.collection('users').doc(uid).get();
+      final customerName = userDoc.data()?['name'] ?? 'Müşteri';
+
       await firestore.runTransaction((transaction) async {
         final businessRef =
             firestore.collection('businesses').doc(businessId);
@@ -157,6 +161,16 @@ class _CustomerAppointmentsScreenState
         }
 
         transaction.delete(appointmentRef);
+
+        // Fizyoterapiste bildirim
+        transaction.set(firestore.collection('notifications').doc(), {
+          'userId': businessId,
+          'title': 'Randevu İptal Edildi',
+          'message': '$customerName • $date saat $time randevusunu iptal etti',
+          'type': 'appointment_cancelled',
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
       });
 
       if (!mounted) return;
