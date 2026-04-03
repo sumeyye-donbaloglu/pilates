@@ -25,16 +25,22 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
   bool loading = false;
   final String uid = FirebaseAuth.instance.currentUser!.uid;
 
-  String get formattedDate =>
-      "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
+  // 14 günlük tarih listesi
+  final List<DateTime> _dates = List.generate(
+    14,
+    (i) => DateTime.now().add(Duration(days: i)),
+  );
 
-  static const _weekdays = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
-  static const _months = [
+  static const _weekdayShort = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+  static const _monthShort = [
     "", "Oca", "Şub", "Mar", "Nis", "May", "Haz",
     "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"
   ];
 
-  // ── Randevu talebi ────────────────────────────────────────────────
+  String get formattedDate =>
+      "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
+
+  // ── Randevu talebi ──────────────────────────────────────────────────
 
   Future<void> requestSlot({
     required String slotId,
@@ -82,8 +88,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
       final userDoc = await firestore.collection('users').doc(uid).get();
       final customerName = userDoc.data()?['name'] ?? 'Müşteri';
 
-      final requestRef =
-          await firestore.collection('appointment_requests').add({
+      final requestRef = await firestore.collection('appointment_requests').add({
         'businessId': widget.businessId,
         'customerId': uid,
         'customerName': customerName,
@@ -98,8 +103,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
       await firestore.collection('notifications').add({
         'userId': widget.businessId,
         'title': 'Yeni Randevu Talebi',
-        'message':
-            '$customerName • $formattedDate $time için randevu talebi gönderdi',
+        'message': '$customerName • $formattedDate $time için randevu talebi gönderdi',
         'type': 'appointment_request',
         'isRead': false,
         'relatedRequestId': requestRef.id,
@@ -128,101 +132,85 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     }
   }
 
-  // ── Tarih seçici ──────────────────────────────────────────────────
+  // ── Yatay tarih strip ───────────────────────────────────────────────
 
-  Widget _dateSelector() {
-    final weekday = _weekdays[selectedDate.weekday - 1];
-    final month = _months[selectedDate.month];
+  Widget _dateStrip() {
+    return SizedBox(
+      height: 76,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: _dates.length,
+        itemBuilder: (context, i) {
+          final date = _dates[i];
+          final isSelected = formattedDate ==
+              "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+          final isToday = i == 0;
 
-    return GestureDetector(
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: selectedDate,
-          firstDate: DateTime.now(),
-          lastDate: DateTime(2030),
-          builder: (context, child) => Theme(
-            data: Theme.of(context).copyWith(
-              colorScheme: const ColorScheme.light(
-                primary: AppColors.primary,
-              ),
-            ),
-            child: child!,
-          ),
-        );
-        if (picked != null) setState(() => selectedDate = picked);
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.07),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
+          return GestureDetector(
+            onTap: () => setState(() => selectedDate = date),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.only(right: 10),
               width: 52,
-              height: 52,
               decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(14),
+                color: isSelected ? AppColors.primary : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSelected
+                      ? AppColors.primary
+                      : isToday
+                          ? AppColors.primary.withOpacity(0.3)
+                          : AppColors.border,
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        )
+                      ]
+                    : null,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "${selectedDate.day}",
+                    _weekdayShort[date.weekday - 1],
                     style: GoogleFonts.nunito(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? Colors.white70 : AppColors.textMuted,
                     ),
                   ),
+                  const SizedBox(height: 4),
                   Text(
-                    month,
+                    "${date.day}",
                     style: GoogleFonts.nunito(
-                        color: Colors.white70, fontSize: 11),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: isSelected ? Colors.white : AppColors.deepIndigo,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _monthShort[date.month],
+                    style: GoogleFonts.nunito(
+                      fontSize: 10,
+                      color: isSelected ? Colors.white60 : AppColors.textMuted,
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 14),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  weekday,
-                  style: GoogleFonts.nunito(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.deepIndigo,
-                  ),
-                ),
-                Text(
-                  "${selectedDate.day} $month ${selectedDate.year}",
-                  style: GoogleFonts.nunito(
-                      fontSize: 13, color: AppColors.textMuted),
-                ),
-              ],
-            ),
-            const Spacer(),
-            const Icon(Icons.edit_calendar_outlined,
-                color: AppColors.primary, size: 20),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  // ── Slot listesi (real-time) ───────────────────────────────────────
+  // ── Slot listesi ────────────────────────────────────────────────────
 
   Widget _slotList() {
     return StreamBuilder<QuerySnapshot>(
@@ -235,7 +223,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 32),
+            padding: EdgeInsets.symmetric(vertical: 24),
             child: Center(child: CircularProgressIndicator()),
           );
         }
@@ -243,266 +231,176 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
         final slots = snapshot.data!.docs;
 
         if (slots.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 32),
-            child: Center(
-              child: Column(
-                children: [
-                  Icon(Icons.event_busy_rounded,
-                      size: 52, color: AppColors.border),
-                  const SizedBox(height: 12),
-                  Text(
-                    "Bu tarih için henüz\nseans açılmamış",
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.nunito(
-                      color: AppColors.textMuted,
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(vertical: 28),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.event_busy_rounded, size: 40, color: AppColors.border),
+                const SizedBox(height: 10),
+                Text(
+                  "Bu tarih için seans açılmamış",
+                  style: GoogleFonts.nunito(
+                    fontSize: 14,
+                    color: AppColors.textMuted,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         }
 
-        final sorted = [...slots];
-        sorted.sort((a, b) {
-          final aTime = (a.data() as Map)['time'] as String? ?? '';
-          final bTime = (b.data() as Map)['time'] as String? ?? '';
-          return aTime.compareTo(bTime);
-        });
+        final sorted = [...slots]
+          ..sort((a, b) {
+            final aTime = (a.data() as Map)['time'] as String? ?? '';
+            final bTime = (b.data() as Map)['time'] as String? ?? '';
+            return aTime.compareTo(bTime);
+          });
 
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: sorted.length,
-          itemBuilder: (context, i) {
-            final slotDoc = sorted[i];
-            final slot = slotDoc.data() as Map<String, dynamic>;
-            final used = slot['usedCapacity'] ?? 0;
-            final capacity = slot['capacity'] ?? 1;
-            final slotType = slot['slotType'] as String?;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: sorted.length,
+            itemBuilder: (context, i) {
+              final slotDoc = sorted[i];
+              final slot = slotDoc.data() as Map<String, dynamic>;
+              final used = slot['usedCapacity'] ?? 0;
+              final capacity = slot['capacity'] ?? 1;
+              final slotType = slot['slotType'] as String?;
 
-            return StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('appointment_requests')
-                  .where('customerId', isEqualTo: uid)
-                  .where('slotId', isEqualTo: slotDoc.id)
-                  .where('status', isEqualTo: 'pending')
-                  .limit(1)
-                  .snapshots(),
-              builder: (context, reqSnap) {
-                final hasPending =
-                    reqSnap.hasData && reqSnap.data!.docs.isNotEmpty;
-                final isFull = used >= capacity;
-                final isDisabled = hasPending || isFull;
+              return StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('appointment_requests')
+                    .where('customerId', isEqualTo: uid)
+                    .where('slotId', isEqualTo: slotDoc.id)
+                    .where('status', isEqualTo: 'pending')
+                    .limit(1)
+                    .snapshots(),
+                builder: (context, reqSnap) {
+                  final hasPending =
+                      reqSnap.hasData && reqSnap.data!.docs.isNotEmpty;
+                  final isFull = used >= capacity;
+                  final isDisabled = hasPending || isFull;
 
-                return GestureDetector(
-                  onTap: isDisabled
-                      ? null
-                      : () => requestSlot(
-                            slotId: slotDoc.id,
-                            time: slot['time'],
-                            endTime: slot['endTime'],
-                          ),
-                  child: AnimatedOpacity(
-                    opacity: isDisabled ? 0.55 : 1.0,
-                    duration: const Duration(milliseconds: 200),
+                  Color statusColor = AppColors.accentTeal;
+                  String statusLabel = "Müsait";
+                  if (hasPending) {
+                    statusColor = AppColors.accentAmber;
+                    statusLabel = "Talep Gönderildi";
+                  } else if (isFull) {
+                    statusColor = AppColors.accentPink;
+                    statusLabel = "Dolu";
+                  } else if (slotType == 'demo') {
+                    statusColor = AppColors.purple;
+                    statusLabel = "Demo";
+                  } else if (slotType == 'normal') {
+                    statusColor = AppColors.accentTeal;
+                    statusLabel = "Normal";
+                  }
+
+                  return GestureDetector(
+                    onTap: isDisabled
+                        ? null
+                        : () => requestSlot(
+                              slotId: slotDoc.id,
+                              time: slot['time'],
+                              endTime: slot['endTime'],
+                            ),
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 14),
+                          horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        color: isDisabled
+                            ? AppColors.background
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: hasPending
-                              ? AppColors.accentAmber.withOpacity(0.5)
-                              : isFull
-                                  ? AppColors.accentPink.withOpacity(0.4)
-                                  : AppColors.border,
+                          color: isDisabled
+                              ? AppColors.border.withOpacity(0.5)
+                              : AppColors.border,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withOpacity(0.05),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
                       ),
                       child: Row(
                         children: [
+                          // Saat
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                slot['time'] as String,
+                                style: GoogleFonts.nunito(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDisabled
+                                      ? AppColors.textMuted
+                                      : AppColors.deepIndigo,
+                                ),
+                              ),
+                              Text(
+                                slot['endTime'] as String,
+                                style: GoogleFonts.nunito(
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          // Durum badge
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
+                                horizontal: 12, vertical: 5),
                             decoration: BoxDecoration(
-                              color: isDisabled
-                                  ? AppColors.border
-                                  : AppColors.surfaceTint,
-                              borderRadius: BorderRadius.circular(10),
+                              color: statusColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              slot['time'] as String,
+                              statusLabel,
                               style: GoogleFonts.nunito(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: isDisabled
-                                    ? AppColors.textMuted
-                                    : AppColors.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: statusColor,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Text(
-                            "– ${slot['endTime']}",
-                            style: GoogleFonts.nunito(
-                              fontSize: 14,
-                              color: AppColors.textMuted,
+                          if (!isDisabled) ...[
+                            const SizedBox(width: 10),
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.add_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
                             ),
-                          ),
-                          const Spacer(),
-                          _badge(
-                            hasPending: hasPending,
-                            isFull: isFull,
-                            slotType: slotType,
-                          ),
+                          ],
                         ],
                       ),
                     ),
-                  ),
-                );
-              },
-            );
-          },
+                  );
+                },
+              );
+            },
+          ),
         );
       },
     );
   }
 
-  Widget _badge({
-    required bool hasPending,
-    required bool isFull,
-    required String? slotType,
-  }) {
-    if (hasPending) return _pill("Talep Gönderildi", AppColors.accentAmber);
-    if (isFull) return _pill("Dolu", AppColors.accentPink);
-    if (slotType == 'demo') return _pill("Demo", AppColors.purple);
-    if (slotType == 'normal') return _pill("Normal", AppColors.accentTeal);
-    return _pill("Müsait", AppColors.accentTeal);
-  }
-
-  Widget _pill(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.nunito(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
-      ),
-    );
-  }
-
-  // ── Build ─────────────────────────────────────────────────────────
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: AppColors.primary,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(
-          widget.name,
-          style: GoogleFonts.playfairDisplay(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (widget.location.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Row(
-                  children: [
-                    const Icon(Icons.location_on_outlined,
-                        size: 16, color: AppColors.textMuted),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        widget.location,
-                        style: GoogleFonts.nunito(
-                            fontSize: 13, color: AppColors.textMuted),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            _dateSelector(),
-
-            const SizedBox(height: 20),
-
-            Row(
-              children: [
-                Text(
-                  "Müsait Seanslar",
-                  style: GoogleFonts.nunito(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.deepIndigo,
-                  ),
-                ),
-                if (loading) ...[
-                  const SizedBox(width: 10),
-                  const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ],
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            _slotList(),
-
-            const SizedBox(height: 28),
-
-            Text(
-              "Paketler",
-              style: GoogleFonts.nunito(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: AppColors.deepIndigo,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            _packageList(),
-
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Paket listesi ──────────────────────────────────────────────────
+  // ── Paket listesi ───────────────────────────────────────────────────
 
   Widget _packageList() {
     return StreamBuilder<QuerySnapshot>(
@@ -513,40 +411,48 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return const Padding(
+            padding: EdgeInsets.all(20),
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
 
-        // isActive filtresi client-side
         final packages = snapshot.data!.docs
             .where((d) => (d.data() as Map)['isActive'] != false)
             .toList();
 
         if (packages.isEmpty) {
-          return Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Text(
-              "Bu salon henüz paket tanımlamamış",
-              textAlign: TextAlign.center,
-              style: GoogleFonts.nunito(
-                  fontSize: 14, color: AppColors.textMuted),
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Text(
+                "Bu salon henüz paket tanımlamamış",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                    fontSize: 14, color: AppColors.textMuted),
+              ),
             ),
           );
         }
 
-        return Column(
-          children: packages.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            return _PackageCard(
-              data: data,
-              onBuy: () => _showBuyDialog(data),
-            );
-          }).toList(),
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            children: packages.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return _PackageCard(
+                data: data,
+                onBuy: () => _showBuyDialog(data),
+              );
+            }).toList(),
+          ),
         );
       },
     );
@@ -587,31 +493,30 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                 color: AppColors.deepIndigo,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
-              "₺${(packageData['price'] as num?)?.toStringAsFixed(0) ?? '0'} · "
-              "${packageData['sessionCount']} seans · "
+              "₺${(packageData['price'] as num?)?.toStringAsFixed(0) ?? '0'}  ·  "
+              "${packageData['sessionCount']} seans  ·  "
               "${packageData['validityDays']} gün geçerli",
-              style: GoogleFonts.nunito(
-                  fontSize: 14, color: AppColors.textMuted),
+              style: GoogleFonts.nunito(fontSize: 14, color: AppColors.textMuted),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: AppColors.surfaceTint,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
                   const Icon(Icons.info_outline_rounded,
-                      size: 18, color: AppColors.primary),
+                      size: 16, color: AppColors.primary),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       "Ödeme sistemi yakında aktif olacak. Satın almak için salonla iletişime geçebilirsiniz.",
                       style: GoogleFonts.nunito(
-                        fontSize: 13,
+                        fontSize: 12,
                         color: AppColors.purple,
                         height: 1.5,
                       ),
@@ -649,6 +554,137 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
       ),
     );
   }
+
+  // ── Section başlığı ─────────────────────────────────────────────────
+
+  Widget _sectionTitle(String title, {Widget? trailing}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.nunito(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppColors.deepIndigo,
+            ),
+          ),
+          if (trailing != null) ...[
+            const Spacer(),
+            trailing,
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── Build ───────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: CustomScrollView(
+        slivers: [
+          // ── Gradient header
+          SliverAppBar(
+            expandedHeight: 140,
+            pinned: true,
+            backgroundColor: AppColors.primary,
+            iconTheme: const IconThemeData(color: Colors.white),
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.gradientStart, AppColors.gradientEnd],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.name,
+                          style: GoogleFonts.playfairDisplay(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (widget.location.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on_rounded,
+                                  color: Colors.white54, size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                widget.location,
+                                style: GoogleFonts.nunito(
+                                  color: Colors.white60,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── İçerik
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+
+                // Tarih strip
+                _sectionTitle("Tarih Seç"),
+                const SizedBox(height: 12),
+                _dateStrip(),
+
+                const SizedBox(height: 24),
+
+                // Seanslar
+                _sectionTitle(
+                  "Müsait Seanslar",
+                  trailing: loading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                _slotList(),
+
+                const SizedBox(height: 28),
+
+                // Paketler
+                _sectionTitle("Paketler"),
+                const SizedBox(height: 12),
+                _packageList(),
+
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ── Paket Kartı ───────────────────────────────────────────────────────
@@ -666,23 +702,24 @@ class _PackageCard extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: AppColors.primary.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
@@ -690,9 +727,9 @@ class _PackageCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.card_giftcard_rounded,
-                color: Colors.white, size: 22),
+                color: Colors.white, size: 20),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -700,14 +737,14 @@ class _PackageCard extends StatelessWidget {
                 Text(
                   data['name'] ?? '',
                   style: GoogleFonts.nunito(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppColors.deepIndigo,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
-                  "$sessionCount seans · $validityDays gün",
+                  "$sessionCount seans  ·  $validityDays gün",
                   style: GoogleFonts.nunito(
                     fontSize: 12,
                     color: AppColors.textMuted,
@@ -716,37 +753,32 @@ class _PackageCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 "₺${price.toStringAsFixed(0)}",
                 style: GoogleFonts.nunito(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: AppColors.deepIndigo,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 5),
               GestureDetector(
                 onTap: onBuy,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        AppColors.gradientStart,
-                        AppColors.gradientEnd
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     "Satın Al",
                     style: GoogleFonts.nunito(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -868,10 +900,7 @@ class _RequestSheetState extends State<_RequestSheet> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [
-                          AppColors.gradientStart,
-                          AppColors.gradientEnd
-                        ],
+                        colors: [AppColors.gradientStart, AppColors.gradientEnd],
                       ),
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
