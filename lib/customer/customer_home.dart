@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'body_info.dart';
 import 'business_list.dart';
 import 'customer_appointments.dart';
+import 'customer_packages.dart';
 import '../welcome.dart';
 import 'notifications.dart';
 import 'package:pilates/screen/chat/chat_list_screen.dart';
@@ -189,6 +190,18 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Paketlerim banner
+                      _PackagesBanner(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CustomerPackagesScreen(),
+                          ),
+                        ),
+                        uid: uid,
                       ),
                       const SizedBox(height: 14),
 
@@ -388,6 +401,88 @@ class _ProgressBanner extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Paketlerim banner
+class _PackagesBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  final String uid;
+  const _PackagesBanner({required this.onTap, required this.uid});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('activePackages')
+          .snapshots(),
+      builder: (context, snapshot) {
+        final count = snapshot.data?.docs.length ?? 0;
+        return GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFF59E0B).withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.card_giftcard_rounded,
+                      color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Paketlerim",
+                        style: GoogleFonts.playfairDisplay(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        count > 0
+                            ? "$count aktif paketiniz var"
+                            : "Henüz aktif paketiniz yok",
+                        style: GoogleFonts.nunito(
+                            color: Colors.white70, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios_rounded,
+                    color: Colors.white70, size: 14),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

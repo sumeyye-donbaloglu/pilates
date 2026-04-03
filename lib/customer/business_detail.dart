@@ -480,8 +480,280 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
             const SizedBox(height: 12),
 
             _slotList(),
+
+            const SizedBox(height: 28),
+
+            Text(
+              "Paketler",
+              style: GoogleFonts.nunito(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: AppColors.deepIndigo,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            _packageList(),
+
+            const SizedBox(height: 24),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Paket listesi ──────────────────────────────────────────────────
+
+  Widget _packageList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(widget.businessId)
+          .collection('packages')
+          .where('isActive', isEqualTo: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final packages = snapshot.data!.docs;
+
+        if (packages.isEmpty) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              "Bu salon henüz paket tanımlamamış",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.nunito(
+                  fontSize: 14, color: AppColors.textMuted),
+            ),
+          );
+        }
+
+        return Column(
+          children: packages.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return _PackageCard(
+              data: data,
+              onBuy: () => _showBuyDialog(data),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  void _showBuyDialog(Map<String, dynamic> packageData) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => Container(
+        padding: EdgeInsets.fromLTRB(
+            24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              packageData['name'] ?? 'Paket',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.deepIndigo,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "₺${(packageData['price'] as num?)?.toStringAsFixed(0) ?? '0'} · "
+              "${packageData['sessionCount']} seans · "
+              "${packageData['validityDays']} gün geçerli",
+              style: GoogleFonts.nunito(
+                  fontSize: 14, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceTint,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded,
+                      size: 18, color: AppColors.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "Ödeme sistemi yakında aktif olacak. Satın almak için salonla iletişime geçebilirsiniz.",
+                      style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        color: AppColors.purple,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                label: Text(
+                  "Salonla İletişime Geç",
+                  style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Paket Kartı ───────────────────────────────────────────────────────
+
+class _PackageCard extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final VoidCallback onBuy;
+  const _PackageCard({required this.data, required this.onBuy});
+
+  @override
+  Widget build(BuildContext context) {
+    final price = (data['price'] as num?)?.toDouble() ?? 0;
+    final sessionCount = data['sessionCount'] as int? ?? 0;
+    final validityDays = data['validityDays'] as int? ?? 0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.card_giftcard_rounded,
+                color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  data['name'] ?? '',
+                  style: GoogleFonts.nunito(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.deepIndigo,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "$sessionCount seans · $validityDays gün",
+                  style: GoogleFonts.nunito(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                "₺${price.toStringAsFixed(0)}",
+                style: GoogleFonts.nunito(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.deepIndigo,
+                ),
+              ),
+              const SizedBox(height: 6),
+              GestureDetector(
+                onTap: onBuy,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        AppColors.gradientStart,
+                        AppColors.gradientEnd
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    "Satın Al",
+                    style: GoogleFonts.nunito(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

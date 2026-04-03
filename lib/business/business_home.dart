@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../firestore_paths.dart';
 import '../randevu_management.dart';
+import 'business_packages.dart';
 import 'business_settings.dart';
 import '../welcome.dart';
 import 'business_profile_screen.dart';
@@ -247,6 +248,21 @@ class _BusinessHomeScreenState extends State<BusinessHomeScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const MembersScreen(),
+                          ),
+                        ),
+                      ),
+                      _MenuCard(
+                        title: "Paketler",
+                        icon: Icons.card_giftcard_rounded,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const BusinessPackagesScreen(),
                           ),
                         ),
                       ),
