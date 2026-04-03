@@ -486,166 +486,181 @@ class _RandevuManagementScreenState extends State<RandevuManagementScreen> {
 
   // Saate göre grupla, erken → geç sırala
   Widget _groupedAppointmentList(List<Map<String, dynamic>> appts) {
-    // time → liste
     final Map<String, List<Map<String, dynamic>>> byTime = {};
     for (final appt in appts) {
       final t = appt['time'] as String? ?? '--:--';
       byTime.putIfAbsent(t, () => []).add(appt);
     }
-
     final sortedTimes = byTime.keys.toList()..sort();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: sortedTimes.map((time) {
           final group = byTime[time]!;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Saat başlığı ──────────────────────────────
-              Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 8),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        time,
-                        style: GoogleFonts.nunito(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      "${group.length} kişi",
-                      style: GoogleFonts.nunito(
-                        fontSize: 13,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    const Expanded(child: Divider(indent: 10)),
-                  ],
-                ),
-              ),
-              // ── O saatteki müşteriler ─────────────────────
-              ...group.map((appt) => _appointmentCard(appt, showTime: false)),
-              const SizedBox(height: 4),
-            ],
-          );
+          return _timeSlotCard(time, group);
         }).toList(),
       ),
     );
   }
 
-  Widget _appointmentCard(Map<String, dynamic> appt, {bool showTime = true}) {
-    final customerId = appt['customerId'] as String? ?? '';
-    final customerName = _nameCache[customerId] ?? 'Müşteri';
-    final time = appt['time'] as String? ?? '--:--';
-    final lessonType = appt['lessonType'] as String? ?? '';
-    final lessonLabel = _lessonLabel(lessonType);
-    final lessonColor = _lessonColor(lessonType);
-
+  // Tek saat dilimi kartı — tüm müşteriler içinde
+  Widget _timeSlotCard(String time, List<Map<String, dynamic>> group) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withOpacity(0.06),
-            blurRadius: 10,
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          // Saat balonu — sadece tekil gösterimde
-          if (showTime) ...[
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Sol accent çizgi + saat
             Container(
-              width: 60,
-              height: 60,
+              width: 72,
               decoration: BoxDecoration(
                 color: AppColors.primary,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Center(
-                child: Text(
-                  time,
-                  style: GoogleFonts.nunito(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  bottomLeft: Radius.circular(20),
                 ),
               ),
-            ),
-            const SizedBox(width: 14),
-          ],
-          // Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  customerName,
-                  style: GoogleFonts.nunito(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.deepIndigo,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.person_outline_rounded,
-                        size: 13, color: AppColors.textMuted),
-                    const SizedBox(width: 4),
-                    Text(
-                      customerId.length > 8
-                          ? customerId.substring(0, 8) + '...'
-                          : customerId,
-                      style: GoogleFonts.nunito(
-                          fontSize: 12, color: AppColors.textLight),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    time,
+                    style: GoogleFonts.nunito(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      "${group.length} kişi",
+                      style: GoogleFonts.nunito(
+                        color: Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Müşteri listesi
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    vertical: 10, horizontal: 14),
+                child: Column(
+                  children: group.asMap().entries.map((entry) {
+                    final isLast = entry.key == group.length - 1;
+                    return Column(
+                      children: [
+                        _customerRow(entry.value),
+                        if (!isLast)
+                          Divider(
+                            height: 12,
+                            thickness: 1,
+                            color: AppColors.border.withOpacity(0.6),
+                          ),
+                      ],
+                    );
+                  }).toList(),
                 ),
-              ],
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _customerRow(Map<String, dynamic> appt) {
+    final customerId = appt['customerId'] as String? ?? '';
+    final customerName = _nameCache[customerId] ?? 'Müşteri';
+    final lessonType = appt['lessonType'] as String? ?? '';
+    final lessonLabel = _lessonLabel(lessonType);
+    final lessonColor = _lessonColor(lessonType);
+
+    // Baş harf avatar rengi
+    final initial = customerName.isNotEmpty
+        ? customerName[0].toUpperCase()
+        : '?';
+
+    return Row(
+      children: [
+        // Avatar
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: lessonColor.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(12),
           ),
-          // Lesson badge
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: lessonColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
+          child: Center(
             child: Text(
-              lessonLabel,
+              initial,
               style: GoogleFonts.nunito(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
                 color: lessonColor,
               ),
             ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 10),
+        // İsim
+        Expanded(
+          child: Text(
+            customerName,
+            style: GoogleFonts.nunito(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.deepIndigo,
+            ),
+          ),
+        ),
+        // Ders tipi badge
+        Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: lessonColor.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            lessonLabel,
+            style: GoogleFonts.nunito(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: lessonColor,
+            ),
+          ),
+        ),
+      ],
     );
   }
+
 
   String _lessonLabel(String type) {
     switch (type) {
