@@ -20,7 +20,7 @@ class AppTheme {
         color: AppColors.deepIndigo,
         letterSpacing: 0.3,
       ),
-      titleMedium: GoogleFonts.nunito(
+      titleMedium: GoogleFonts.openSans(
         fontSize: 16,
         fontWeight: FontWeight.w700,
         color: AppColors.primary,
