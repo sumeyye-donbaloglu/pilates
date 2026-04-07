@@ -1,4 +1,5 @@
 import '../theme/app_colors.dart';
+import '../services/iyzico_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -713,11 +714,27 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
 
-    // 2 saniyelik ödeme simülasyonu
-    await Future.delayed(const Duration(seconds: 2));
-
     try {
       final pkg = widget.pkg;
+      final expiry = _expiryCtrl.text.split('/');
+      final email = FirebaseAuth.instance.currentUser?.email ?? '';
+
+      final result = await IyzicoService.createPayment(
+        cardHolderName: _cardNameCtrl.text.trim(),
+        cardNumber: _cardNumberCtrl.text,
+        expireMonth: expiry[0],
+        expireYear: expiry.length > 1 ? expiry[1] : '',
+        cvc: _cvvCtrl.text,
+        price: (pkg['price'] as num?)?.toDouble() ?? 0,
+        packageName: pkg['name'] ?? 'Paket',
+        buyerId: widget.customerId,
+        buyerEmail: email,
+      );
+
+      if (result['status'] != 'success') {
+        throw Exception(result['errorMessage'] ?? 'Ödeme başarısız');
+      }
+
       final sessionCount = pkg['sessionCount'] as int? ?? 0;
       final validityDays = pkg['validityDays'] as int? ?? 30;
       final expiresAt = DateTime.now().add(Duration(days: validityDays));
@@ -735,13 +752,14 @@ class _PaymentSheetState extends State<_PaymentSheet> {
         'expiresAt': Timestamp.fromDate(expiresAt),
         'purchasedAt': FieldValue.serverTimestamp(),
         'price': pkg['price'] ?? 0,
+        'paymentId': result['paymentId']?.toString() ?? '',
       });
 
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Paket satın alındı! ${sessionCount} seans hesabınıza eklendi."),
+            content: Text("Ödeme onaylandı! $sessionCount seans hesabınıza eklendi."),
             backgroundColor: const Color(0xFF10B981),
             duration: const Duration(seconds: 3),
           ),
@@ -751,7 +769,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Hata: $e"), backgroundColor: Colors.red),
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
         );
       }
     }
