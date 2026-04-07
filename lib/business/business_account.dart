@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../firestore_paths.dart';
 import '../theme/app_colors.dart';
+import 'business_home.dart';
 
 class BusinessAccount extends StatefulWidget {
   const BusinessAccount({super.key});
@@ -64,13 +65,10 @@ class _BusinessAccountState extends State<BusinessAccount> {
       });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("İşletme hesabı oluşturuldu"),
-        ),
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const BusinessHomeScreen()),
+        (route) => false,
       );
-
-      Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

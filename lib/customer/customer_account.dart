@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../theme/app_colors.dart';
+import 'body_info.dart';
 
 class CustomerAccount extends StatefulWidget {
   const CustomerAccount({super.key});
@@ -98,7 +99,10 @@ class _CustomerAccountState extends State<CustomerAccount> {
       });
 
       if (!mounted) return;
-      _snack("Hesap başarıyla oluşturuldu ✓", AppColors.accentTeal);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const BodyInfoOnboardingScreen()),
+        (route) => false,
+      );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       _snack(_authError(e.code), Colors.red);

@@ -643,73 +643,415 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => Container(
-        padding: EdgeInsets.fromLTRB(
-            24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+      builder: (_) => _PaymentSheet(
+        pkg: pkg,
+        businessId: widget.businessId,
+        businessName: widget.name,
+        customerId: uid,
+      ),
+    );
+  }
+}
+
+// ── Ödeme Bottom Sheet ────────────────────────────────────────────────
+
+class _PaymentSheet extends StatefulWidget {
+  final Map<String, dynamic> pkg;
+  final String businessId;
+  final String businessName;
+  final String customerId;
+
+  const _PaymentSheet({
+    required this.pkg,
+    required this.businessId,
+    required this.businessName,
+    required this.customerId,
+  });
+
+  @override
+  State<_PaymentSheet> createState() => _PaymentSheetState();
+}
+
+class _PaymentSheetState extends State<_PaymentSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _cardNumberCtrl = TextEditingController();
+  final _cardNameCtrl = TextEditingController();
+  final _expiryCtrl = TextEditingController();
+  final _cvvCtrl = TextEditingController();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _cardNumberCtrl.dispose();
+    _cardNameCtrl.dispose();
+    _expiryCtrl.dispose();
+    _cvvCtrl.dispose();
+    super.dispose();
+  }
+
+  String _formatCardNumber(String value) {
+    final digits = value.replaceAll(' ', '');
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length && i < 16; i++) {
+      if (i > 0 && i % 4 == 0) buffer.write(' ');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
+  }
+
+  String _formatExpiry(String value) {
+    final digits = value.replaceAll('/', '');
+    if (digits.length >= 3) {
+      return '${digits.substring(0, 2)}/${digits.substring(2, digits.length > 4 ? 4 : digits.length)}';
+    } else if (digits.length == 2) {
+      return '$digits/';
+    }
+    return digits;
+  }
+
+  Future<void> _processPayment() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _loading = true);
+
+    // 2 saniyelik ödeme simülasyonu
+    await Future.delayed(const Duration(seconds: 2));
+
+    try {
+      final pkg = widget.pkg;
+      final sessionCount = pkg['sessionCount'] as int? ?? 0;
+      final validityDays = pkg['validityDays'] as int? ?? 30;
+      final expiresAt = DateTime.now().add(Duration(days: validityDays));
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.customerId)
+          .collection('activePackages')
+          .add({
+        'packageName': pkg['name'] ?? 'Paket',
+        'businessName': widget.businessName,
+        'businessId': widget.businessId,
+        'totalSessions': sessionCount,
+        'remainingSessions': sessionCount,
+        'expiresAt': Timestamp.fromDate(expiresAt),
+        'purchasedAt': FieldValue.serverTimestamp(),
+        'price': pkg['price'] ?? 0,
+      });
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Paket satın alındı! ${sessionCount} seans hesabınıza eklendi."),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Hata: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pkg = widget.pkg;
+    final price = (pkg['price'] as num?)?.toStringAsFixed(0) ?? '0';
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(pkg['name'] ?? 'Paket',
-                style: GoogleFonts.playfairDisplay(
-                    fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.deepIndigo)),
-            const SizedBox(height: 6),
-            Text(
-              "₺${(pkg['price'] as num?)?.toStringAsFixed(0) ?? '0'}  ·  ${pkg['sessionCount']} seans  ·  ${pkg['validityDays']} gün geçerli",
-              style: GoogleFonts.nunito(fontSize: 13, color: AppColors.textMuted),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                  color: const Color(0xFFF3F0FF),
-                  borderRadius: BorderRadius.circular(12)),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF7C3AED)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      "Ödeme sistemi yakında aktif olacak. Satın almak için salonla iletişime geçebilirsiniz.",
-                      style: GoogleFonts.nunito(
-                          fontSize: 12, color: const Color(0xFF5B21B6), height: 1.5),
-                    ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(2)),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C3AED),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  elevation: 0,
                 ),
-                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                label: Text("Salonla İletişime Geç",
-                    style: GoogleFonts.nunito(fontWeight: FontWeight.bold, fontSize: 15)),
-                onPressed: () => Navigator.pop(context),
-              ),
+                const SizedBox(height: 20),
+
+                // Paket özeti
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF5B4FCF), Color(0xFF7C3AED)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.card_giftcard_rounded,
+                          color: Colors.white, size: 28),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(pkg['name'] ?? 'Paket',
+                                style: GoogleFonts.nunito(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700)),
+                            Text(
+                              "${pkg['sessionCount']} seans  ·  ${pkg['validityDays']} gün geçerli",
+                              style: GoogleFonts.nunito(
+                                  color: Colors.white70, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text("₺$price",
+                          style: GoogleFonts.nunito(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                Text("Kart Bilgileri",
+                    style: GoogleFonts.nunito(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.deepIndigo)),
+                const SizedBox(height: 14),
+
+                // Kart üzerindeki isim
+                _buildField(
+                  controller: _cardNameCtrl,
+                  label: "Kart Üzerindeki İsim",
+                  hint: "AD SOYAD",
+                  icon: Icons.person_outline_rounded,
+                  inputType: TextInputType.name,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? "İsim gerekli" : null,
+                ),
+                const SizedBox(height: 12),
+
+                // Kart numarası
+                TextFormField(
+                  controller: _cardNumberCtrl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 19,
+                  decoration: _inputDecoration(
+                    label: "Kart Numarası",
+                    hint: "0000 0000 0000 0000",
+                    icon: Icons.credit_card_rounded,
+                  ),
+                  style: GoogleFonts.nunito(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.5),
+                  onChanged: (v) {
+                    final formatted = _formatCardNumber(v);
+                    if (formatted != v) {
+                      _cardNumberCtrl.value = TextEditingValue(
+                        text: formatted,
+                        selection:
+                            TextSelection.collapsed(offset: formatted.length),
+                      );
+                    }
+                  },
+                  validator: (v) {
+                    final digits = (v ?? '').replaceAll(' ', '');
+                    if (digits.length < 16) return "Geçerli kart numarası girin";
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // Son kullanma + CVV
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _expiryCtrl,
+                        keyboardType: TextInputType.number,
+                        maxLength: 5,
+                        decoration: _inputDecoration(
+                          label: "Son Kullanma",
+                          hint: "AA/YY",
+                          icon: Icons.calendar_today_rounded,
+                        ),
+                        style: GoogleFonts.nunito(
+                            fontSize: 15, fontWeight: FontWeight.w600),
+                        onChanged: (v) {
+                          final formatted = _formatExpiry(v);
+                          if (formatted != v) {
+                            _expiryCtrl.value = TextEditingValue(
+                              text: formatted,
+                              selection: TextSelection.collapsed(
+                                  offset: formatted.length),
+                            );
+                          }
+                        },
+                        validator: (v) {
+                          if (v == null || v.length < 5) return "AA/YY giriniz";
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _cvvCtrl,
+                        keyboardType: TextInputType.number,
+                        maxLength: 3,
+                        obscureText: true,
+                        decoration: _inputDecoration(
+                          label: "CVV",
+                          hint: "•••",
+                          icon: Icons.lock_outline_rounded,
+                        ),
+                        style: GoogleFonts.nunito(
+                            fontSize: 15, fontWeight: FontWeight.w600),
+                        validator: (v) {
+                          if (v == null || v.length < 3) return "CVV giriniz";
+                          return null;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // Test modu uyarısı
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: const Color(0xFFF59E0B).withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded,
+                          size: 14, color: Color(0xFFD97706)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Test modu — gerçek ödeme alınmaz",
+                          style: GoogleFonts.nunito(
+                              fontSize: 11,
+                              color: const Color(0xFFD97706),
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Ödeme butonu
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _loading ? null : _processPayment,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7C3AED),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor:
+                          const Color(0xFF7C3AED).withOpacity(0.6),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    child: _loading
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2.5),
+                          )
+                        : Text(
+                            "₺$price  Ödemeyi Tamamla",
+                            style: GoogleFonts.nunito(
+                                fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    TextInputType inputType = TextInputType.text,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: inputType,
+      decoration: _inputDecoration(label: label, hint: hint, icon: icon),
+      style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w600),
+      validator: validator,
+    );
+  }
+
+  InputDecoration _inputDecoration({
+    required String label,
+    required String hint,
+    required IconData icon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      prefixIcon: Icon(icon, size: 20, color: AppColors.textMuted),
+      counterText: '',
+      labelStyle:
+          GoogleFonts.nunito(fontSize: 13, color: AppColors.textMuted),
+      hintStyle: GoogleFonts.nunito(fontSize: 14, color: AppColors.border),
+      filled: true,
+      fillColor: const Color(0xFFF9F8FF),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide:
+            const BorderSide(color: Color(0xFF7C3AED), width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
       ),
     );
   }
